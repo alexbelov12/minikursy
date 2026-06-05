@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}{{ t('stats.title') }} — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="section-title mb-1">
+                <i class="fas fa-chart-bar text-success me-2" aria-hidden="true"></i>{{ t('stats.title') }}
+            </h1>
+            <p class="text-muted mb-0">{{ t('stats.subtitle') }}</p>
+        </div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2" aria-hidden="true"></i>{{ t('stats.back') }}
+        </a>
+    </div>
+
+    <!-- Overview stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#dbeafe;" aria-hidden="true">
+                    <i class="fas fa-users" style="color:#2563eb;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-primary">{{ total_users }}</div>
+                    <div class="stat-label">{{ t('stats.total_students') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#dcfce7;" aria-hidden="true">
+                    <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-success">{{ total_completions }}</div>
+                    <div class="stat-label">{{ t('stats.total_completions') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#fef9c3;" aria-hidden="true">
+                    <i class="fas fa-book-open" style="color:#d97706;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-warning">{{ course_stats | length }}</div>
+                    <div class="stat-label">{{ t('stats.total_courses') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#fee2e2;" aria-hidden="true">
+                    <i class="fas fa-clipboard-check" style="color:#dc2626;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-danger">
+                        {{ stats_data | sum(attribute='quizzes') }}
+                    </div>
+                    <div class="stat-label">{{ t('stats.total_quizzes') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Students table -->
+        <div class="col-lg-7">
+            <div class="panel">
+                <h5 class="fw-bold mb-3">
+                    <i class="fas fa-users text-primary me-2" aria-hidden="true"></i>{{ t('stats.students_table') }}
+                </h5>
+                {% if stats_data %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle admin-table mb-0"
+                           aria-label="{{ t('stats.students_table') }}">
+                        <thead>
+                            <tr>
+                                <th>{{ t('stats.col_student') }}</th>
+                                <th>{{ t('stats.col_lessons') }}</th>
+                                <th>{{ t('stats.col_quizzes') }}</th>
+                                <th>{{ t('stats.col_score') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in stats_data %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.85rem;text-transform:uppercase;flex-shrink:0;"
+                                             aria-hidden="true">
+                                            {{ s.user.username[0] }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">{{ s.user.username }}</div>
+                                            <div class="text-muted small">{{ s.user.email }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-semibold">{{ s.completed }}</span>
+                                    {% if s.completed > 0 %}
+                                        <span class="badge ms-1" style="background:#dcfce7;color:#16a34a;"
+                                              aria-hidden="true">
+                                            <i class="fas fa-check" style="font-size:.6rem;"></i>
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ s.quizzes }}</td>
+                                <td>
+                                    {% if s.quizzes > 0 %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height:6px; max-width:60px;"
+                                             role="progressbar" aria-valuenow="{{ s.avg_score }}"
+                                             aria-valuemin="0" aria-valuemax="100">
+                                            <div class="progress-bar {% if s.avg_score >= 80 %}bg-success{% elif s.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                 style="width:{{ s.avg_score }}%"></div>
+                                        </div>
+                                        <span class="small fw-semibold">{{ s.avg_score }}%</span>
+                                    </div>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state py-4">
+                    <i class="fas fa-users text-muted d-block" style="font-size:2.5rem;opacity:.2;" aria-hidden="true"></i>
+                    <p class="text-muted mt-2 mb-0">{{ t('stats.no_students') }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Course popularity -->
+        <div class="col-lg-5">
+            <div class="panel">
+                <h5 class="fw-bold mb-3">
+                    <i class="fas fa-fire text-danger me-2" aria-hidden="true"></i>{{ t('stats.popularity') }}
+                </h5>
+                {% if course_stats %}
+                    {% for cs in course_stats %}
+                    <div class="d-flex align-items-center gap-3 mb-3 pb-3
+                                {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="course-color-{{ cs.course.id % 6 }}"
+                             style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+                             aria-hidden="true">
+                            <i class="fas fa-graduation-cap text-white small"></i>
+                        </div>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="fw-semibold text-truncate small">{{ cs.course.title }}</div>
+                            <div class="text-muted" style="font-size:.75rem;">
+                                <span class="me-3">
+                                    <i class="fas fa-user me-1" aria-hidden="true"></i>
+                                    {{ cs.enrolled }} {{ t('stats.enrolled') }}
+                                </span>
+                                <span>
+                                    <i class="fas fa-trophy me-1 text-warning" aria-hidden="true"></i>
+                                    {{ cs.fully_done }} {{ t('stats.finished') }}
+                                </span>
+                            </div>
+                        </div>
+                        {% if cs.enrolled > 0 %}
+                        <div class="text-end" style="min-width:45px;">
+                            <div class="fw-bold small text-primary">{{ cs.enrolled }}</div>
+                            <div class="text-muted" style="font-size:.7rem;">
+                                {{ t('stats.total_students') | lower }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state py-4">
+                        <p class="text-muted mb-0">{{ t('stats.no_data') }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

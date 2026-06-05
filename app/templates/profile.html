@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.profile') }} — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Profile header -->
+    <div class="panel mb-4 fade-in">
+        <div class="d-flex align-items-center gap-3 gap-md-4 flex-wrap flex-sm-nowrap">
+            <div class="profile-avatar" aria-hidden="true">{{ current_user.username[0] }}</div>
+            <div>
+                <h2 class="fw-bold mb-1">{{ current_user.username }}</h2>
+                <div class="text-muted mb-1">
+                    <i class="fas fa-envelope me-2" aria-hidden="true"></i>{{ current_user.email }}
+                </div>
+                <div class="text-muted small">
+                    <i class="fas fa-calendar me-2" aria-hidden="true"></i>
+                    {{ t('profile.member_since') }} {{ current_user.created_at.strftime('%d.%m.%Y') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="stat-card fade-in">
+                <div class="stat-icon" style="background:#dbeafe;" aria-hidden="true">
+                    <i class="fas fa-book-reader" style="color:#2563eb;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-primary">{{ courses_progress | length }}</div>
+                    <div class="stat-label">{{ t('profile.courses_started') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card fade-in">
+                <div class="stat-icon" style="background:#dcfce7;" aria-hidden="true">
+                    <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-success">{{ completed_lessons }}</div>
+                    <div class="stat-label">{{ t('profile.lessons_done') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card fade-in">
+                <div class="stat-icon" style="background:#fef9c3;" aria-hidden="true">
+                    <i class="fas fa-star" style="color:#d97706;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-warning">
+                        {% if quiz_count > 0 %}{{ avg_percent }}%{% else %}—{% endif %}
+                    </div>
+                    <div class="stat-label">{{ t('profile.avg_score') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Courses progress -->
+    <div class="panel fade-in">
+        <h5 class="fw-bold mb-4">
+            <i class="fas fa-graduation-cap text-primary me-2" aria-hidden="true"></i>
+            {{ t('profile.my_courses') }}
+        </h5>
+
+        {% if courses_progress %}
+            <div class="row g-3">
+                {% for item in courses_progress %}
+                <div class="col-md-6">
+                    <div style="border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; background: var(--bg);">
+                        <div class="d-flex align-items-start gap-3 mb-3">
+                            <div class="course-color-{{ item.course.id % 6 }}"
+                                 style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;{% if item.course.cover_image %}background-image:url('{{ item.course.cover_image }}');background-size:cover;{% endif %}"
+                                 aria-hidden="true">
+                                {% if not item.course.cover_image %}
+                                    <i class="fas fa-graduation-cap text-white small"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1 min-width-0">
+                                <div class="fw-bold text-truncate">{{ item.course.title }}</div>
+                                <div class="text-muted small">
+                                    {{ item.completed }}/{{ item.total }} {{ t('profile.lessons') }}
+                                    {% if item.is_finished %}
+                                        <span class="badge ms-1" style="background:#dcfce7;color:#16a34a;">
+                                            {{ t('profile.finished') }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress mb-2" style="height:8px;" role="progressbar"
+                             aria-valuenow="{{ item.percent }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar {% if item.is_finished %}bg-success{% else %}bg-primary{% endif %}"
+                                 style="width: {{ item.percent }}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small fw-semibold {% if item.is_finished %}text-success{% else %}text-primary{% endif %}">
+                                {{ item.percent }}%
+                            </span>
+                            <a href="{{ url_for('courses.course', course_id=item.course.id) }}"
+                               class="btn btn-sm {% if item.is_finished %}btn-outline-success{% else %}btn-outline-primary{% endif %} py-0 px-3">
+                                {% if item.is_finished %}{{ t('profile.repeat') }}{% else %}{{ t('profile.continue') }}{% endif %}
+                                <i class="fas fa-arrow-right ms-1" style="font-size:.7rem;" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state py-4">
+                <i class="fas fa-book-open text-muted d-block" style="font-size:3rem; opacity:.2;" aria-hidden="true"></i>
+                <h6 class="fw-bold mt-3">{{ t('profile.no_courses') }}</h6>
+                <p class="text-muted small mb-3">{{ t('profile.no_courses_desc') }}</p>
+                <a href="{{ url_for('main.catalog') }}" class="btn btn-primary">
+                    <i class="fas fa-book-open me-2" aria-hidden="true"></i>{{ t('profile.go_catalog') }}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

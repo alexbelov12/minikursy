@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.brand') }} — {{ t('index.badge') }}{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero-section">
+    <div class="container text-center position-relative" style="z-index:2;">
+        <div class="hero-badge">
+            <i class="fas fa-bolt" aria-hidden="true"></i> {{ t('index.badge') }}
+        </div>
+        <h1 class="mb-3">{{ t('index.hero_title') }}</h1>
+        <p class="lead mb-4">{{ t('index.hero_desc') | safe }}</p>
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.catalog') }}" class="btn btn-light btn-lg px-5 fw-semibold shadow">
+                <i class="fas fa-book-open me-2" aria-hidden="true"></i>{{ t('index.go_to_courses') }}
+            </a>
+        {% else %}
+            <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-5 fw-semibold shadow me-2 mb-2">
+                <i class="fas fa-rocket me-2" aria-hidden="true"></i>{{ t('index.start_free') }}
+            </a>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg px-5 mb-2">
+                {{ t('nav.login') }}
+            </a>
+        {% endif %}
+
+    </div>
+</section>
+
+<!-- Features -->
+<section class="py-5" aria-label="{{ 'Возможности платформы' if lang == 'ru' else ('Платформа мүмкіндіктері' if lang == 'kz' else 'Platform features') }}">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="panel text-center h-100 fade-in">
+                    <div class="feature-icon mb-3 mx-auto" style="background: #dbeafe; color: #1d4ed8;" aria-hidden="true">
+                        <i class="fas fa-book-reader fa-lg"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">{{ t('index.feature1_title') }}</h5>
+                    <p class="text-muted mb-0">{{ t('index.feature1_desc') }}</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel text-center h-100 fade-in">
+                    <div class="feature-icon mb-3 mx-auto" style="background: #fee2e2; color: #b91c1c;" aria-hidden="true">
+                        <i class="fas fa-play-circle fa-lg"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">{{ t('index.feature2_title') }}</h5>
+                    <p class="text-muted mb-0">{{ t('index.feature2_desc') }}</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel text-center h-100 fade-in">
+                    <div class="feature-icon mb-3 mx-auto" style="background: #dcfce7; color: #15803d;" aria-hidden="true">
+                        <i class="fas fa-clipboard-check fa-lg"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">{{ t('index.feature3_title') }}</h5>
+                    <p class="text-muted mb-0">{{ t('index.feature3_desc') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Courses -->
+{% if courses %}
+<section class="py-4" style="background: var(--card-bg); border-top: 1px solid var(--border);">
+    <div class="container py-3">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h2 class="section-title mb-0">{{ t('index.popular_courses') }}</h2>
+            <a href="{{ url_for('main.catalog') }}" class="btn btn-outline-primary px-4">
+                {{ t('index.all_courses') }} <i class="fas fa-arrow-right ms-2" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="row g-4">
+            {% for course in courses %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card course-card course-color-{{ course.id % 6 }}">
+                    <div class="course-card-header"
+                         {% if course.cover_image %}style="background-image: url('{{ course.cover_image }}'); background-size: cover; background-position: center;"{% endif %}
+                         role="img" aria-label="{{ course.title }}">
+                        {% if not course.cover_image %}
+                        <div class="card-icon" aria-hidden="true">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        {% endif %}
+                        {% if course.difficulty %}
+                        <span class="badge difficulty-badge difficulty-{{ course.difficulty }}">
+                            {% if course.difficulty == 'beginner' %}<i class="fas fa-seedling me-1"></i>
+                            {% elif course.difficulty == 'intermediate' %}<i class="fas fa-fire me-1"></i>
+                            {% else %}<i class="fas fa-bolt me-1"></i>{% endif %}
+                            {{ t('catalog.difficulty_' + course.difficulty) }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-1">{{ course.title }}</h5>
+                        <p class="text-muted small mb-3">
+                            {{ course.short_description or (course.description[:100] + '...') }}
+                        </p>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted small">
+                                <i class="fas fa-list-ul me-1" aria-hidden="true"></i>
+                                {{ course.lessons | length }} {{ t('index.lessons_count') }}
+                            </span>
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('courses.course', course_id=course.id) }}"
+                               class="btn btn-primary btn-sm px-3">
+                                {{ t('index.open') }} <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i>
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-sm px-3">
+                                {{ t('nav.login') }}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- CTA -->
+{% if not current_user.is_authenticated %}
+<section class="py-5" style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+    <div class="container text-center py-3">
+        <h3 class="fw-bold mb-2">{{ t('index.cta_title') }}</h3>
+        <p class="text-muted mb-4">{{ t('index.cta_desc') }}</p>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5">
+            <i class="fas fa-user-plus me-2" aria-hidden="true"></i>{{ t('index.create_account') }}
+        </a>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

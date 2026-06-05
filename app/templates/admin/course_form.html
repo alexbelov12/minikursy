@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}{% if course %}Редактировать курс{% else %}{{ t('admin.new_course') }}{% endif %} — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.dashboard') }}">{{ t('admin.title') }}</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {% if course %}{{ course.title }}{% else %}{{ t('admin.new_course') }}{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="panel">
+                <h3 class="fw-bold mb-4">
+                    {% if course %}Редактировать курс{% else %}Создать новый курс{% endif %}
+                </h3>
+                <form method="POST" novalidate>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="title">
+                            Название курса <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="title" id="title" class="form-control"
+                               value="{{ course.title if course else '' }}"
+                               placeholder="Например: Основы Python" required aria-required="true">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="short_desc">Краткое описание</label>
+                        <input type="text" name="short_description" id="short_desc" class="form-control"
+                               value="{{ course.short_description if course else '' }}"
+                               placeholder="Одно предложение о курсе (отображается в карточке)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="description">
+                            Полное описание <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="description" id="description" class="form-control" rows="4"
+                                  placeholder="Подробное описание курса..." required
+                                  aria-required="true">{{ course.description if course else '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="cover_image">
+                            <i class="fas fa-image text-primary me-1" aria-hidden="true"></i>
+                            Обложка курса (URL изображения)
+                        </label>
+                        <input type="text" name="cover_image" id="cover_image" class="form-control"
+                               value="{{ course.cover_image if course and course.cover_image else '' }}"
+                               placeholder="https://images.unsplash.com/...">
+                        <div class="form-text">
+                            Необязательно. Вставьте ссылку на изображение. Если не указано — отображается цветной градиент.
+                        </div>
+                        {% if course and course.cover_image %}
+                        <div class="mt-2">
+                            <img src="{{ course.cover_image }}" class="img-fluid rounded"
+                                 style="max-height:120px;" onerror="this.style.display='none'"
+                                 alt="Обложка курса">
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold" for="category">{{ t('course.category') }}</label>
+                            <select name="category" id="category" class="form-select">
+                                <option value="">— {{ t('catalog.filter_all') }} —</option>
+                                <option value="programming" {% if course and course.category == 'programming' %}selected{% endif %}>{{ t('catalog.cat_programming') }}</option>
+                                <option value="design" {% if course and course.category == 'design' %}selected{% endif %}>{{ t('catalog.cat_design') }}</option>
+                                <option value="business" {% if course and course.category == 'business' %}selected{% endif %}>{{ t('catalog.cat_business') }}</option>
+                                <option value="languages" {% if course and course.category == 'languages' %}selected{% endif %}>{{ t('catalog.cat_languages') }}</option>
+                                <option value="math" {% if course and course.category == 'math' %}selected{% endif %}>{{ t('catalog.cat_math') }}</option>
+                                <option value="science" {% if course and course.category == 'science' %}selected{% endif %}>{{ t('catalog.cat_science') }}</option>
+                                <option value="other" {% if course and course.category == 'other' %}selected{% endif %}>{{ t('catalog.cat_other') }}</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold" for="difficulty">{{ t('course.difficulty') }}</label>
+                            <select name="difficulty" id="difficulty" class="form-select">
+                                <option value="">— {{ t('catalog.filter_all') }} —</option>
+                                <option value="beginner" {% if course and course.difficulty == 'beginner' %}selected{% endif %}>{{ t('catalog.difficulty_beginner') }}</option>
+                                <option value="intermediate" {% if course and course.difficulty == 'intermediate' %}selected{% endif %}>{{ t('catalog.difficulty_intermediate') }}</option>
+                                <option value="advanced" {% if course and course.difficulty == 'advanced' %}selected{% endif %}>{{ t('catalog.difficulty_advanced') }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_published"
+                                   id="published"
+                                   {% if course and course.is_published %}checked{% endif %}>
+                            <label class="form-check-label fw-semibold" for="published">
+                                Опубликовать курс
+                            </label>
+                        </div>
+                        <div class="form-text">Неопубликованные курсы видны только администратору.</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-save me-2" aria-hidden="true"></i>Сохранить
+                        </button>
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary px-4">
+                            Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if course %}
+        <div class="col-lg-5">
+            <div class="panel">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-list-ul text-primary me-2" aria-hidden="true"></i>Уроки
+                        <span class="badge bg-light text-muted ms-1">{{ course.lessons | length }}</span>
+                    </h5>
+                    <a href="{{ url_for('admin.new_lesson', course_id=course.id) }}"
+                       class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1" aria-hidden="true"></i>Добавить
+                    </a>
+                </div>
+
+                {% if course.lessons %}
+                    {% for lesson in course.lessons %}
+                    <div class="d-flex align-items-center p-2 rounded-2 mb-2"
+                         style="background: var(--bg); border: 1px solid var(--border);">
+                        <div class="me-2" aria-hidden="true">
+                            {% if lesson.lesson_type == 'video' %}
+                                <span class="badge type-badge-video"
+                                      style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;">
+                                    <i class="fas fa-play" style="font-size:.6rem;"></i>
+                                </span>
+                            {% elif lesson.lesson_type == 'quiz' %}
+                                <span class="badge type-badge-quiz"
+                                      style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;">
+                                    <i class="fas fa-check" style="font-size:.6rem;"></i>
+                                </span>
+                            {% else %}
+                                <span class="badge type-badge-text"
+                                      style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;">
+                                    <i class="fas fa-file-alt" style="font-size:.6rem;"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1 small fw-semibold text-truncate me-2">
+                            <span class="text-muted me-1">{{ loop.index }}.</span>{{ lesson.title }}
+                        </div>
+                        <div class="d-flex gap-1 flex-shrink-0">
+                            <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}"
+                               class="btn btn-sm btn-outline-primary py-0 px-2"
+                               aria-label="Редактировать {{ lesson.title }}">
+                                <i class="fas fa-edit" style="font-size:.75rem;" aria-hidden="true"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Удалить урок?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                        aria-label="Удалить {{ lesson.title }}">
+                                    <i class="fas fa-trash" style="font-size:.75rem;" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4 text-muted small">
+                        <i class="fas fa-folder-open opacity-25 d-block mb-2" style="font-size:2rem;" aria-hidden="true"></i>
+                        Уроков пока нет
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

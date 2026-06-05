@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ t('catalog.title') }} — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header + Search -->
+    <div class="row align-items-center mb-3 g-3">
+        <div class="col-md-6">
+            <h1 class="section-title mb-1">{{ t('catalog.title') }}</h1>
+            <p class="text-muted mb-0">
+                {% if q %}
+                    {{ t('catalog.found_prefix') }} <strong>{{ courses | length }}</strong> {{ t('catalog.found_suffix') }} «{{ q }}»
+                {% else %}
+                    {{ t('catalog.available') }} <strong>{{ courses | length }}</strong>
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-6">
+            <form method="GET" action="{{ url_for('main.catalog') }}" role="search">
+                {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+                {% if difficulty %}<input type="hidden" name="difficulty" value="{{ difficulty }}">{% endif %}
+                {% if sort != 'newest' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+                <div class="search-wrapper">
+                    <i class="fas fa-search search-icon" aria-hidden="true"></i>
+                    <input type="text" name="q" class="form-control"
+                           placeholder="{{ t('catalog.search_placeholder') }}"
+                           value="{{ q }}"
+                           aria-label="{{ t('catalog.search_placeholder') }}">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filters bar -->
+    {% if categories or difficulties %}
+    <div class="catalog-filters mb-4">
+        <!-- Category filter -->
+        {% if categories %}
+        <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+            <small class="text-muted fw-semibold me-1 flex-shrink-0">{{ t('catalog.filter_category') }}:</small>
+            <a href="{{ url_for('main.catalog', q=q, difficulty=difficulty, sort=sort) }}"
+               class="btn btn-sm rounded-pill px-3 {% if not category %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ t('catalog.filter_all') }}
+            </a>
+            {% for cat in categories %}
+            <a href="{{ url_for('main.catalog', q=q, category=cat, difficulty=difficulty, sort=sort) }}"
+               class="btn btn-sm rounded-pill px-3 {% if category == cat %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ t('catalog.cat_' + cat) }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Difficulty filter + Sort -->
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if difficulties %}
+            <small class="text-muted fw-semibold me-1 flex-shrink-0">{{ t('catalog.filter_difficulty') }}:</small>
+            <a href="{{ url_for('main.catalog', q=q, category=category, sort=sort) }}"
+               class="btn btn-sm rounded-pill px-3 {% if not difficulty %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">
+                {{ t('catalog.filter_all') }}
+            </a>
+            {% for diff in difficulties %}
+            <a href="{{ url_for('main.catalog', q=q, category=category, difficulty=diff, sort=sort) }}"
+               class="btn btn-sm rounded-pill px-3 {% if difficulty == diff %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">
+                {% if diff == 'beginner' %}<i class="fas fa-seedling me-1" aria-hidden="true"></i>
+                {% elif diff == 'intermediate' %}<i class="fas fa-fire me-1 text-warning" aria-hidden="true"></i>
+                {% else %}<i class="fas fa-bolt me-1 text-danger" aria-hidden="true"></i>{% endif %}
+                {{ t('catalog.difficulty_' + diff) }}
+            </a>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Sort -->
+            <div class="ms-auto">
+                <select class="form-select form-select-sm catalog-sort-select" id="sortSelect"
+                        style="min-width:165px;" onchange="applyCatalogSort(this)">
+                    <option value="newest" {% if sort == 'newest' %}selected{% endif %}>{{ t('catalog.sort_newest') }}</option>
+                    <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>{{ t('catalog.sort_oldest') }}</option>
+                    <option value="az" {% if sort == 'az' %}selected{% endif %}>{{ t('catalog.sort_az') }}</option>
+                    <option value="lessons" {% if sort == 'lessons' %}selected{% endif %}>{{ t('catalog.sort_lessons') }}</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Sort only (no categories/difficulties set yet) -->
+    <div class="d-flex justify-content-end mb-3">
+        <select class="form-select form-select-sm catalog-sort-select" id="sortSelect"
+                style="min-width:165px;" onchange="applyCatalogSort(this)">
+            <option value="newest" {% if sort == 'newest' %}selected{% endif %}>{{ t('catalog.sort_newest') }}</option>
+            <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>{{ t('catalog.sort_oldest') }}</option>
+            <option value="az" {% if sort == 'az' %}selected{% endif %}>{{ t('catalog.sort_az') }}</option>
+            <option value="lessons" {% if sort == 'lessons' %}selected{% endif %}>{{ t('catalog.sort_lessons') }}</option>
+        </select>
+    </div>
+    {% endif %}
+
+    {% if q and not courses %}
+    <div class="empty-state">
+        <i class="fas fa-search text-muted d-block" aria-hidden="true"></i>
+        <h5 class="fw-bold mt-2">{{ t('catalog.not_found_title') }}</h5>
+        <p class="text-muted">{{ t('catalog.not_found_desc') }} «{{ q }}»</p>
+        <a href="{{ url_for('main.catalog') }}" class="btn btn-outline-primary">
+            <i class="fas fa-times me-2" aria-hidden="true"></i>{{ t('catalog.reset_search') }}
+        </a>
+    </div>
+    {% elif not courses %}
+    <div class="empty-state">
+        <i class="fas fa-book-open text-muted d-block" aria-hidden="true"></i>
+        <h5 class="fw-bold mt-2">{{ t('catalog.no_courses_title') }}</h5>
+        <p class="text-muted">{{ t('catalog.no_courses_desc') }}</p>
+    </div>
+    {% else %}
+    <div class="row g-4">
+        {% for course in courses %}
+        <div class="col-md-6 col-lg-4 fade-in">
+            <article class="card course-card course-color-{{ course.id % 6 }} h-100">
+                <div class="course-card-header"
+                     {% if course.cover_image %}style="background-image: url('{{ course.cover_image }}'); background-size: cover; background-position: center;"{% endif %}
+                     role="img" aria-label="{{ course.title }}">
+                    {% if not course.cover_image %}
+                    <div class="card-icon" aria-hidden="true">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    {% endif %}
+                    <!-- Difficulty badge on card image -->
+                    {% if course.difficulty %}
+                    <span class="badge difficulty-badge difficulty-{{ course.difficulty }}">
+                        {% if course.difficulty == 'beginner' %}<i class="fas fa-seedling me-1" aria-hidden="true"></i>
+                        {% elif course.difficulty == 'intermediate' %}<i class="fas fa-fire me-1" aria-hidden="true"></i>
+                        {% else %}<i class="fas fa-bolt me-1" aria-hidden="true"></i>{% endif %}
+                        {{ t('catalog.difficulty_' + course.difficulty) }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-4 d-flex flex-column">
+                    <!-- Category badge -->
+                    {% if course.category %}
+                    <div class="mb-2">
+                        <span class="badge bg-light text-secondary border" style="font-size:.7rem;">
+                            {{ t('catalog.cat_' + course.category) }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    <h5 class="fw-bold mb-1">{{ course.title }}</h5>
+                    <p class="text-muted small mb-3 flex-grow-1">
+                        {{ course.short_description or (course.description[:120] + '...') }}
+                    </p>
+
+                    {% set text_c = course.lessons | selectattr('lesson_type', 'eq', 'text') | list | length %}
+                    {% set video_c = course.lessons | selectattr('lesson_type', 'eq', 'video') | list | length %}
+                    {% set quiz_c = course.lessons | selectattr('lesson_type', 'eq', 'quiz') | list | length %}
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        {% if text_c %}<span class="badge type-badge-text">
+                            <i class="fas fa-file-alt me-1" aria-hidden="true"></i>{{ text_c }} {{ t('course.type_text') | lower }}
+                        </span>{% endif %}
+                        {% if video_c %}<span class="badge type-badge-video">
+                            <i class="fas fa-play me-1" aria-hidden="true"></i>{{ video_c }} {{ t('course.type_video') | lower }}
+                        </span>{% endif %}
+                        {% if quiz_c %}<span class="badge type-badge-quiz">
+                            <i class="fas fa-check me-1" aria-hidden="true"></i>{{ quiz_c }} {{ t('course.type_quiz') | lower }}
+                        </span>{% endif %}
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="text-muted small">
+                            <i class="fas fa-list-ul me-1" aria-hidden="true"></i>
+                            {{ course.lessons | length }} {{ t('catalog.lessons') }}
+                        </span>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('courses.course', course_id=course.id) }}"
+                           class="btn btn-primary btn-sm px-3">
+                            {{ t('catalog.open') }} <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
+                            {{ t('nav.login') }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyCatalogSort(sel) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sel.value);
+    window.location = url.toString();
+}
+</script>
+{% endblock %}

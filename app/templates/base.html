@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="{{ 'en' if lang == 'en' else ('kk' if lang == 'kz' else 'ru') }}" data-theme="light" data-fontsize="normal" data-contrast="off" data-noanim="off">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ t('nav.brand') }}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">{{ 'Skip to content' if lang == 'en' else ('Мазмұнға өту' if lang == 'kz' else 'Перейти к содержимому') }}</a>
+
+<nav class="navbar navbar-expand-lg navbar-dark" role="navigation" aria-label="Главная навигация">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
+            <i class="fas fa-graduation-cap me-2"></i>{{ t('nav.brand') }}
+        </a>
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav" aria-controls="navbarNav"
+                aria-expanded="false" aria-label="Меню">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.catalog') }}">
+                        <i class="fas fa-book-open me-1"></i>{{ t('nav.catalog') }}
+                    </a>
+                </li>
+            </ul>
+            <ul class="navbar-nav align-items-center gap-1">
+                <li class="nav-item d-flex align-items-center gap-1 me-1">
+                    <a href="{{ url_for('main.set_lang', lang_code='ru') }}"
+                       class="lang-btn {% if lang == 'ru' %}active{% endif %}"
+                       aria-label="Русский язык">РУ</a>
+                    <a href="{{ url_for('main.set_lang', lang_code='kz') }}"
+                       class="lang-btn {% if lang == 'kz' %}active{% endif %}"
+                       aria-label="Қазақ тілі">ҚАЗ</a>
+                    <a href="{{ url_for('main.set_lang', lang_code='en') }}"
+                       class="lang-btn {% if lang == 'en' %}active{% endif %}"
+                       aria-label="English">EN</a>
+                </li>
+
+                {% if current_user.is_authenticated %}
+                    {% if current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                            <i class="fas fa-cog me-1"></i>{{ t('nav.manage') }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="user-avatar" aria-hidden="true">{{ current_user.username[0] }}</span>
+                            <span class="d-none d-sm-inline">{{ current_user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0"
+                            style="border-radius:12px; min-width:200px;">
+                            <li class="px-3 py-2">
+                                <div class="fw-semibold text-dark">{{ current_user.username }}</div>
+                                <div class="text-muted small">{{ current_user.email }}</div>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <a class="dropdown-item rounded-2" href="{{ url_for('main.profile') }}">
+                                    <i class="fas fa-user me-2 text-primary"></i>{{ t('nav.profile') }}
+                                </a>
+                            </li>
+                            {% if current_user.is_admin %}
+                            <li>
+                                <a class="dropdown-item rounded-2" href="{{ url_for('admin.stats') }}">
+                                    <i class="fas fa-chart-bar me-2 text-success"></i>{{ t('nav.stats') }}
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <a class="dropdown-item rounded-2 text-danger" href="{{ url_for('auth.logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>{{ t('nav.logout') }}
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i>{{ t('nav.login') }}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-light btn-sm px-3 fw-semibold nav-register"
+                           href="{{ url_for('auth.register') }}">{{ t('nav.register') }}</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-3" role="alert" aria-live="polite">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show fade-in">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+<main id="main-content">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="footer py-4 mt-auto" role="contentinfo">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="fw-bold text-white mb-1">
+                    <i class="fas fa-graduation-cap me-2" aria-hidden="true"></i>{{ t('nav.brand') }}
+                </div>
+                <small class="text-muted">{{ t('footer.copy') }}</small>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Accessibility FAB -->
+<button class="access-fab" id="accessFab" onclick="toggleAccessPanel()"
+        aria-label="{{ t('access.panel_title') }}"
+        aria-expanded="false" aria-controls="accessPanel">
+    <i class="fas fa-universal-access" aria-hidden="true"></i>
+</button>
+
+<!-- Accessibility Panel -->
+<div class="access-panel" id="accessPanel" role="dialog"
+     aria-label="{{ t('access.panel_title') }}" aria-modal="false">
+    <div class="access-panel-header">
+        <span><i class="fas fa-universal-access me-2"></i>{{ t('access.panel_title') }}</span>
+        <button class="btn-close btn-close-white btn-sm" onclick="toggleAccessPanel()"
+                aria-label="{{ 'Close' if lang == 'en' else ('Жабу' if lang == 'kz' else 'Закрыть') }}"></button>
+    </div>
+    <div class="access-panel-body">
+        <div class="access-section">
+            <div class="access-label">{{ t('access.lang') }}</div>
+            <div class="access-row">
+                <a href="{{ url_for('main.set_lang', lang_code='ru') }}"
+                   class="access-btn {% if lang == 'ru' %}active{% endif %}">🇷🇺 Русский</a>
+                <a href="{{ url_for('main.set_lang', lang_code='kz') }}"
+                   class="access-btn {% if lang == 'kz' %}active{% endif %}">🇰🇿 Қазақша</a>
+                <a href="{{ url_for('main.set_lang', lang_code='en') }}"
+                   class="access-btn {% if lang == 'en' %}active{% endif %}">🇬🇧 English</a>
+            </div>
+        </div>
+        <div class="access-section">
+            <div class="access-label">{{ t('access.theme') }}</div>
+            <div class="access-row">
+                <button id="btn-theme-light" class="access-btn" onclick="setTheme('light')" aria-pressed="false">
+                    <i class="fas fa-sun" aria-hidden="true"></i> {{ t('access.theme_light') }}
+                </button>
+                <button id="btn-theme-dark" class="access-btn" onclick="setTheme('dark')" aria-pressed="false">
+                    <i class="fas fa-moon" aria-hidden="true"></i> {{ t('access.theme_dark') }}
+                </button>
+            </div>
+        </div>
+        <div class="access-section">
+            <div class="access-label">{{ t('access.fontsize') }}</div>
+            <div class="access-row">
+                <button id="btn-fs-normal" class="access-btn" onclick="setFontSize('normal')" aria-pressed="false" style="font-size:0.8rem;">A</button>
+                <button id="btn-fs-lg"     class="access-btn" onclick="setFontSize('lg')"     aria-pressed="false" style="font-size:0.95rem;">A+</button>
+                <button id="btn-fs-xl"     class="access-btn" onclick="setFontSize('xl')"     aria-pressed="false" style="font-size:1.1rem;">A++</button>
+            </div>
+        </div>
+        <div class="access-section">
+            <div class="access-row">
+                <button id="btn-contrast" class="access-btn" onclick="toggleContrast()" aria-pressed="false">
+                    <i class="fas fa-adjust" aria-hidden="true"></i> {{ t('access.contrast') }}
+                </button>
+            </div>
+        </div>
+        <div class="access-section">
+            <div class="access-row">
+                <button id="btn-noanim" class="access-btn" onclick="toggleNoAnim()" aria-pressed="false">
+                    <i class="fas fa-pause-circle" aria-hidden="true"></i> {{ t('access.no_anim') }}
+                </button>
+            </div>
+        </div>
+        <div class="access-section">
+            <button onclick="resetAccess()" class="access-btn access-btn-reset w-100">
+                <i class="fas fa-undo me-1" aria-hidden="true"></i>{{ t('access.reset') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

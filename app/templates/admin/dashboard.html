@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin.title') }} — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="section-title mb-1">
+                <i class="fas fa-cog text-primary me-2" aria-hidden="true"></i>{{ t('admin.title') }}
+            </h1>
+            <p class="text-muted mb-0">{{ t('admin.subtitle') }}</p>
+        </div>
+        <a href="{{ url_for('admin.new_course') }}" class="btn btn-primary px-4">
+            <i class="fas fa-plus me-2" aria-hidden="true"></i>{{ t('admin.new_course') }}
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#dbeafe;" aria-hidden="true">
+                    <i class="fas fa-book-open" style="color:#2563eb;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-primary">{{ courses_count }}</div>
+                    <div class="stat-label">{{ t('admin.courses') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#dcfce7;" aria-hidden="true">
+                    <i class="fas fa-list-ul" style="color:#16a34a;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-success">{{ lessons_count }}</div>
+                    <div class="stat-label">{{ t('admin.lessons') }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#fef9c3;" aria-hidden="true">
+                    <i class="fas fa-users" style="color:#d97706;"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-warning">{{ users_count }}</div>
+                    <div class="stat-label">{{ t('admin.students') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="d-flex gap-2 mb-4 flex-wrap">
+        <a href="{{ url_for('admin.stats') }}" class="btn btn-outline-primary">
+            <i class="fas fa-chart-bar me-2" aria-hidden="true"></i>{{ t('admin.student_stats') }}
+        </a>
+    </div>
+
+    <!-- Courses table -->
+    <div class="panel">
+        <h5 class="fw-bold mb-3">{{ t('admin.all_courses') }}</h5>
+        {% if courses %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle admin-table mb-0" aria-label="{{ t('admin.all_courses') }}">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin.col_title') }}</th>
+                        <th>{{ t('admin.col_lessons') }}</th>
+                        <th>{{ t('admin.col_status') }}</th>
+                        <th>{{ t('admin.col_created') }}</th>
+                        <th class="text-end">{{ t('admin.col_actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="course-color-{{ course.id % 6 }}"
+                                     style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;{% if course.cover_image %}background-image:url('{{ course.cover_image }}');background-size:cover;{% endif %}"
+                                     aria-hidden="true">
+                                    {% if not course.cover_image %}
+                                        <i class="fas fa-graduation-cap text-white small"></i>
+                                    {% endif %}
+                                </div>
+                                <span class="fw-semibold">{{ course.title }}</span>
+                            </div>
+                        </td>
+                        <td><span class="text-muted">{{ course.lessons | length }}</span></td>
+                        <td>
+                            {% if course.is_published %}
+                                <span class="badge" style="background:#dcfce7;color:#16a34a;">
+                                    {{ t('admin.published') }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted">{{ t('admin.draft') }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ course.created_at.strftime('%d.%m.%Y') }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('courses.course', course_id=course.id) }}"
+                               class="btn btn-sm btn-outline-secondary me-1"
+                               aria-label="Просмотр {{ course.title }}">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </a>
+                            <a href="{{ url_for('admin.edit_course', course_id=course.id) }}"
+                               class="btn btn-sm btn-outline-primary me-1"
+                               aria-label="Редактировать {{ course.title }}">
+                                <i class="fas fa-edit" aria-hidden="true"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('admin.delete_course', course_id=course.id) }}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Удалить курс «{{ course.title }}»?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        aria-label="Удалить {{ course.title }}">
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-book text-muted d-block" aria-hidden="true"></i>
+            <h5 class="fw-bold mt-2">{{ t('admin.no_courses') }}</h5>
+            <a href="{{ url_for('admin.new_course') }}" class="btn btn-primary mt-2">
+                <i class="fas fa-plus me-2" aria-hidden="true"></i>{{ t('admin.create_first') }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

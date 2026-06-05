@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}{% if lesson %}Редактировать урок{% else %}Новый урок{% endif %} — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.dashboard') }}">{{ t('admin.title') }}</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.edit_course', course_id=course.id) }}">{{ course.title }}</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {% if lesson %}{{ lesson.title }}{% else %}Новый урок{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Lesson form -->
+        <div class="col-lg-7">
+            <div class="panel">
+                <h3 class="fw-bold mb-4">
+                    <i class="fas fa-{% if lesson %}edit{% else %}plus{% endif %} text-primary me-2" aria-hidden="true"></i>
+                    {% if lesson %}Редактировать урок{% else %}Новый урок{% endif %}
+                </h3>
+                <form method="POST" id="lessonForm" novalidate>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="lesson_title">Название урока *</label>
+                        <input type="text" name="title" id="lesson_title" class="form-control"
+                               value="{{ lesson.title if lesson else '' }}"
+                               placeholder="Например: Введение в переменные" required aria-required="true">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="lessonType">Тип урока</label>
+                        <select name="lesson_type" class="form-select" id="lessonType"
+                                onchange="toggleFields()">
+                            <option value="text" {% if lesson and lesson.lesson_type == 'text' %}selected{% endif %}>
+                                Текстовый урок
+                            </option>
+                            <option value="video" {% if lesson and lesson.lesson_type == 'video' %}selected{% endif %}>
+                                Видео-урок
+                            </option>
+                            <option value="quiz" {% if lesson and lesson.lesson_type == 'quiz' %}selected{% endif %}>
+                                Тест (вопросы)
+                            </option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="lesson_order">Порядковый номер</label>
+                        <input type="number" name="order" id="lesson_order" class="form-control"
+                               style="max-width:120px"
+                               value="{{ lesson.order if lesson else next_order }}" min="0">
+                        <div class="form-text">Определяет порядок уроков в курсе (0, 1, 2...)</div>
+                    </div>
+
+                    <!-- Video URL field -->
+                    <div class="mb-3" id="videoField" style="display:none">
+                        <label class="form-label fw-semibold" for="video_url">
+                            Ссылка на YouTube-видео
+                        </label>
+                        <input type="text" name="video_url" id="video_url" class="form-control"
+                               value="{{ lesson.video_url if lesson else '' }}"
+                               placeholder="https://www.youtube.com/watch?v=...">
+                        <div class="form-text">Вставьте ссылку на YouTube-видео</div>
+                    </div>
+
+                    <!-- Content field -->
+                    <div class="mb-4" id="contentField">
+                        <label class="form-label fw-semibold" id="contentLabel" for="contentArea">
+                            Содержание урока
+                        </label>
+                        <div class="form-text mb-1" id="contentHint">
+                            Поддерживается HTML: &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;h3&gt;, &lt;pre&gt;, &lt;code&gt; и т.д.
+                        </div>
+                        <textarea name="content" class="form-control" rows="10"
+                                  id="contentArea"
+                                  placeholder="Введите текст урока...">{{ lesson.content if lesson else '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-save me-2" aria-hidden="true"></i>Сохранить
+                        </button>
+                        <a href="{{ url_for('admin.edit_course', course_id=course.id) }}"
+                           class="btn btn-outline-secondary px-4">
+                            Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Questions (only for quiz type, when editing) -->
+        {% if lesson and lesson.lesson_type == 'quiz' %}
+        <div class="col-lg-5">
+
+            <!-- AI Generator panel -->
+            <div class="panel mb-3 ai-generate-panel">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="ai-gen-icon" aria-hidden="true">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="fw-bold mb-1">
+                            <i class="fas fa-magic me-1 text-purple"></i>{{ t('ai.generate_title') }}
+                        </h6>
+                        <p class="text-muted small mb-3">{{ t('ai.generate_desc') }}</p>
+                        <form method="POST"
+                              action="{{ url_for('admin.ai_generate_questions', lesson_id=lesson.id) }}"
+                              onsubmit="this.querySelector('button[type=submit]').disabled=true; this.querySelector('.ai-spinner').style.display='inline-block';">
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold mb-1">{{ t('ai.generate_count') }}</label>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    {% for n in [3, 5, 7, 10] %}
+                                    <input type="radio" class="btn-check" name="num_questions"
+                                           id="num{{ n }}" value="{{ n }}" {% if n == 5 %}checked{% endif %}>
+                                    <label class="btn btn-sm btn-outline-secondary" for="num{{ n }}">{{ n }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" name="replace_existing"
+                                       id="replaceExisting" value="1">
+                                <label class="form-check-label small" for="replaceExisting">
+                                    {{ t('ai.generate_replace') }}
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-purple w-100">
+                                <span class="ai-spinner spinner-border spinner-border-sm me-1"
+                                      style="display:none;" role="status" aria-hidden="true"></span>
+                                <i class="fas fa-magic me-1" aria-hidden="true"></i>{{ t('ai.generate_btn') }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-question-circle text-warning me-2" aria-hidden="true"></i>Вопросы теста
+                    </h5>
+                    <a href="{{ url_for('admin.new_question', lesson_id=lesson.id) }}"
+                       class="btn btn-sm btn-warning">
+                        <i class="fas fa-plus me-1" aria-hidden="true"></i>Добавить
+                    </a>
+                </div>
+
+                {% if lesson.questions %}
+                    {% for question in lesson.questions %}
+                    <div class="border rounded p-3 mb-2"
+                         style="background: var(--bg); border-color: var(--border) !important;">
+                        <p class="fw-semibold mb-2 small">{{ loop.index }}. {{ question.text }}</p>
+                        <div class="mb-2">
+                            {% for answer in question.answers %}
+                            <div class="small {% if answer.is_correct %}text-success fw-semibold{% else %}text-muted{% endif %}">
+                                {% if answer.is_correct %}
+                                    <i class="fas fa-check-circle me-1" aria-hidden="true"></i>
+                                {% else %}
+                                    <i class="fas fa-circle me-1 opacity-25" aria-hidden="true"></i>
+                                {% endif %}
+                                {{ answer.text }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex gap-1">
+                            <a href="{{ url_for('admin.edit_question', question_id=question.id) }}"
+                               class="btn btn-sm btn-outline-primary py-0 px-2">
+                                <i class="fas fa-edit" aria-hidden="true"></i> Изменить
+                            </a>
+                            <form method="POST"
+                                  action="{{ url_for('admin.delete_question', question_id=question.id) }}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Удалить вопрос?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                        aria-label="Удалить вопрос">
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3 small">Вопросов пока нет</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleFields() {
+    const type = document.getElementById('lessonType').value;
+    const videoField = document.getElementById('videoField');
+    const contentLabel = document.getElementById('contentLabel');
+    const contentHint = document.getElementById('contentHint');
+
+    if (type === 'video') {
+        videoField.style.display = 'block';
+        contentLabel.textContent = 'Описание к видео (необязательно)';
+        contentHint.style.display = 'none';
+    } else if (type === 'quiz') {
+        videoField.style.display = 'none';
+        contentLabel.textContent = 'Вводный текст теста (необязательно)';
+        contentHint.style.display = 'none';
+    } else {
+        videoField.style.display = 'none';
+        contentLabel.textContent = 'Содержание урока';
+        contentHint.style.display = 'block';
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleFields);
+</script>
+{% endblock %}
