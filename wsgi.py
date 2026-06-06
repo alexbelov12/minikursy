@@ -19,6 +19,8 @@ with app.app_context():
             if 'difficulty' not in course_cols:
                 conn.execute(text('ALTER TABLE course ADD COLUMN difficulty VARCHAR(20)'))
                 conn.commit()
+            conn.execute(text('ALTER TABLE course ALTER COLUMN short_description TYPE TEXT'))
+            conn.commit()
     except Exception:
         pass
 
