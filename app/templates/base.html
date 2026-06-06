@@ -45,6 +45,20 @@
                 </li>
 
                 {% if current_user.is_authenticated %}
+                    {% if not current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="{{ url_for('main.notifications') }}"
+                           aria-label="Уведомления">
+                            <i class="fas fa-bell"></i>
+                            {% if unread_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                  style="font-size:.6rem; padding:2px 5px;">
+                                {{ unread_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin.dashboard') }}">

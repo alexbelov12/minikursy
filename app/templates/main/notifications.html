@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Уведомления — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:700px;">
+    <h2 class="fw-bold mb-4">
+        <i class="fas fa-bell text-primary me-2"></i>Уведомления
+    </h2>
+
+    {% if notifications %}
+    <div class="d-flex flex-column gap-2">
+        {% for n in notifications %}
+        <div class="panel py-3 px-4 d-flex align-items-start gap-3"
+             style="{% if not n.is_read %}border-left: 3px solid #3b82f6;{% else %}opacity:.8;{% endif %}">
+            <div style="width:36px;height:36px;border-radius:10px;background:{% if n.type == 'new_course' %}#dbeafe{% else %}#f1f5f9{% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-{% if n.type == 'new_course' %}book-open{% else %}bell{% endif %}"
+                   style="color:{% if n.type == 'new_course' %}#1d4ed8{% else %}#64748b{% endif %};font-size:.85rem;"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold small">{{ n.message }}</div>
+                <div class="text-muted" style="font-size:.75rem;">
+                    {{ n.created_at.strftime('%d.%m.%Y %H:%M') }}
+                </div>
+                {% if n.type == 'new_course' and n.related_id %}
+                <a href="{{ url_for('courses.course', course_id=n.related_id) }}"
+                   class="btn btn-sm btn-outline-primary py-0 px-2 mt-1" style="font-size:.75rem;">
+                    Открыть курс <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% if not n.is_read %}
+            <span class="badge bg-primary" style="font-size:.65rem; align-self:center;">Новое</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="panel text-center py-5">
+        <i class="fas fa-bell-slash text-muted d-block mb-3" style="font-size:3rem;opacity:.25;"></i>
+        <h6 class="fw-bold">Уведомлений нет</h6>
+        <p class="text-muted small mb-0">Здесь будут появляться новые курсы и события</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

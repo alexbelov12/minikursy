@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Сертификат — {{ course.title }}{% endblock %}
+
+{% block head %}
+<style>
+@media print {
+    .navbar, .footer, .no-print { display: none !important; }
+    body { background: white !important; }
+    .cert-wrapper { box-shadow: none !important; margin: 0 !important; }
+}
+.cert-wrapper {
+    max-width: 800px;
+    margin: 2rem auto;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+}
+.cert-border {
+    border: 8px solid #1d4ed8;
+    border-radius: 12px;
+    margin: 16px;
+    padding: 3rem 3.5rem;
+    position: relative;
+}
+.cert-border::before, .cert-border::after {
+    content: '';
+    position: absolute;
+    width: 40px; height: 40px;
+    border: 4px solid #f59e0b;
+    border-radius: 4px;
+}
+.cert-border::before { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+.cert-border::after  { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+.cert-header-line {
+    height: 4px;
+    background: linear-gradient(90deg, #1d4ed8, #f59e0b, #1d4ed8);
+    border-radius: 2px;
+    margin-bottom: 2rem;
+}
+.cert-title { font-size: 2.8rem; font-weight: 900; letter-spacing: 6px; color: #1d4ed8; text-transform: uppercase; }
+.cert-subtitle { color: #64748b; font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; margin-top: 0.25rem; }
+.cert-presents { color: #64748b; font-size: 0.9rem; margin: 1.5rem 0 0.5rem; }
+.cert-name { font-size: 2.2rem; font-weight: 700; color: #0f172a; border-bottom: 2px solid #1d4ed8; display: inline-block; padding-bottom: 4px; }
+.cert-completed { color: #64748b; margin: 1.2rem 0 0.5rem; font-size: 0.95rem; }
+.cert-course { font-size: 1.4rem; font-weight: 700; color: #1d4ed8; margin-bottom: 1.5rem; }
+.cert-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 2.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; }
+.cert-code { font-size: 0.72rem; color: #94a3b8; letter-spacing: 1px; }
+.cert-brand { font-size: 1rem; font-weight: 700; color: #1d4ed8; }
+.cert-date { font-size: 0.85rem; color: #64748b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print flex-wrap gap-2">
+        <a href="{{ url_for('courses.course', course_id=course.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад к курсу
+        </a>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print me-2"></i>Распечатать / Сохранить PDF
+        </button>
+    </div>
+
+    <div class="cert-wrapper">
+        <div class="cert-border text-center">
+            <div class="cert-header-line"></div>
+
+            <div class="mb-2">
+                <i class="fas fa-graduation-cap" style="font-size: 3rem; color: #f59e0b;"></i>
+            </div>
+            <div class="cert-title">Сертификат</div>
+            <div class="cert-subtitle">об успешном прохождении курса</div>
+
+            <div class="cert-presents">Настоящим подтверждается, что</div>
+            <div class="cert-name">{{ cert.user.username }}</div>
+
+            <div class="cert-completed">успешно прошёл(-а) курс</div>
+            <div class="cert-course">«{{ course.title }}»</div>
+
+            {% if course.difficulty %}
+            <div class="mb-3">
+                <span class="badge px-3 py-2" style="background:#dbeafe; color:#1d4ed8; font-size:.85rem; border-radius:20px;">
+                    {% if course.difficulty == 'beginner' %}Начальный уровень
+                    {% elif course.difficulty == 'intermediate' %}Средний уровень
+                    {% else %}Продвинутый уровень{% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="cert-footer">
+                <div class="text-start">
+                    <div class="cert-brand"><i class="fas fa-graduation-cap me-1"></i>МиниКурсы</div>
+                    <div class="cert-date">Дипломный проект, 2026</div>
+                </div>
+                <div class="text-center">
+                    <div style="width:80px; height:2px; background:#1d4ed8; margin:0 auto 4px;"></div>
+                    <div class="cert-date">Дата: {{ cert.issued_at.strftime('%d.%m.%Y') }}</div>
+                </div>
+                <div class="text-end">
+                    <div class="cert-code">ID: {{ cert.code[:16].upper() }}</div>
+                    <div class="cert-code">{{ cert.code[16:].upper() }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

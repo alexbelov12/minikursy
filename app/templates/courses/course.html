@@ -99,10 +99,109 @@
             </div>
         </div>
 
+        <!-- Reviews -->
+        <div class="col-lg-8">
+            <div class="panel">
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-star text-warning me-2"></i>Отзывы
+                        <span class="text-muted fw-normal small ms-1">({{ course.review_count }})</span>
+                    </h5>
+                    {% if course.avg_rating > 0 %}
+                    <div class="d-flex align-items-center gap-1">
+                        {% for i in range(1,6) %}
+                            <i class="fas fa-star {% if i <= course.avg_rating %}text-warning{% else %}text-muted opacity-25{% endif %}" style="font-size:.85rem;"></i>
+                        {% endfor %}
+                        <span class="fw-bold ms-1">{{ course.avg_rating }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Review form -->
+                <div class="mb-4" style="background:var(--bg);border-radius:10px;padding:1rem;border:1px solid var(--border);">
+                    <div class="fw-semibold small mb-2">
+                        {% if user_review %}Изменить отзыв{% else %}Оставить отзыв{% endif %}
+                    </div>
+                    <form method="POST" action="{{ url_for('courses.review_course', course_id=course.id) }}">
+                        <div class="mb-2">
+                            <div class="star-rating d-flex gap-1" id="starRating">
+                                {% for i in range(1,6) %}
+                                <label style="cursor:pointer;font-size:1.4rem;">
+                                    <input type="radio" name="rating" value="{{ i }}" class="d-none"
+                                           {% if user_review and user_review.rating == i %}checked{% endif %}>
+                                    <i class="fas fa-star star-icon {% if user_review and user_review.rating >= i %}text-warning{% else %}text-muted opacity-25{% endif %}"
+                                       data-val="{{ i }}"></i>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <textarea name="comment" class="form-control form-control-sm mb-2" rows="2"
+                                  placeholder="Напишите комментарий (необязательно)...">{{ user_review.comment if user_review and user_review.comment else '' }}</textarea>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary px-3">Сохранить</button>
+                            {% if user_review %}
+                            <form method="POST" action="{{ url_for('courses.delete_review', review_id=user_review.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Удалить отзыв?')">Удалить</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Reviews list -->
+                {% if course.reviews %}
+                <div class="d-flex flex-column gap-3">
+                    {% for review in course.reviews | sort(attribute='created_at', reverse=True) %}
+                    {% if review.user_id != current_user.id or current_user.is_admin %}
+                    <div class="d-flex gap-3">
+                        <div class="user-avatar flex-shrink-0" style="width:36px;height:36px;font-size:.85rem;">
+                            {{ review.user.username[0] }}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="fw-semibold small">{{ review.user.username }}</span>
+                                <div class="d-flex gap-0">
+                                    {% for i in range(1,6) %}
+                                    <i class="fas fa-star {% if i <= review.rating %}text-warning{% else %}text-muted opacity-25{% endif %}" style="font-size:.7rem;"></i>
+                                    {% endfor %}
+                                </div>
+                                <span class="text-muted" style="font-size:.72rem;">{{ review.created_at.strftime('%d.%m.%Y') }}</span>
+                                {% if current_user.is_admin %}
+                                <form method="POST" action="{{ url_for('courses.delete_review', review_id=review.id) }}" class="d-inline ms-auto">
+                                    <button type="submit" class="btn btn-sm btn-link text-danger py-0 px-1" style="font-size:.72rem;"
+                                            onclick="return confirm('Удалить отзыв?')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            {% if review.comment %}
+                            <p class="small text-muted mb-0 mt-1">{{ review.comment }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small text-center py-2">Отзывов пока нет. Будьте первым!</p>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Right: progress sidebar -->
         <div class="col-lg-4">
             <div class="panel mb-3">
-                <h6 class="fw-bold mb-3">{{ t('course.progress') }}</h6>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">{{ t('course.progress') }}</h6>
+                    <button class="btn btn-sm btn-outline-secondary fav-btn py-0 px-2"
+                            data-course-id="{{ course.id }}"
+                            title="{% if is_favorite %}Удалить из избранного{% else %}В избранное{% endif %}"
+                            aria-label="Избранное">
+                        <i class="fas fa-heart {% if is_favorite %}text-danger{% else %}text-muted{% endif %}"></i>
+                    </button>
+                </div>
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="text-muted small">{{ t('course.passed') }}</span>
@@ -120,7 +219,7 @@
                 {% if total > 0 %}
                     {% set first_lesson = course.lessons[0] %}
                     <a href="{{ url_for('courses.lesson', lesson_id=first_lesson.id) }}"
-                       class="btn btn-primary w-100 fw-semibold">
+                       class="btn btn-primary w-100 fw-semibold mb-2">
                         {% if completed == 0 %}
                             <i class="fas fa-play me-2" aria-hidden="true"></i>{{ t('course.start') }}
                         {% elif completed == total %}
@@ -129,6 +228,12 @@
                             <i class="fas fa-arrow-right me-2" aria-hidden="true"></i>{{ t('course.continue') }}
                         {% endif %}
                     </a>
+                    {% if percent == 100 %}
+                    <a href="{{ url_for('courses.certificate', course_id=course.id) }}"
+                       class="btn btn-success w-100 fw-semibold">
+                        <i class="fas fa-award me-2"></i>Получить сертификат
+                    </a>
+                    {% endif %}
                 {% endif %}
             </div>
 
@@ -168,4 +273,59 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Star rating widget
+document.querySelectorAll('.star-rating label').forEach(function(lbl) {
+    lbl.addEventListener('mouseenter', function() {
+        const val = parseInt(this.querySelector('i').dataset.val);
+        document.querySelectorAll('.star-rating .star-icon').forEach(function(s) {
+            const sv = parseInt(s.dataset.val);
+            s.classList.toggle('text-warning', sv <= val);
+            s.classList.toggle('text-muted', sv > val);
+            s.classList.toggle('opacity-25', sv > val);
+        });
+    });
+    lbl.addEventListener('click', function() {
+        const val = parseInt(this.querySelector('i').dataset.val);
+        this.querySelector('input').checked = true;
+        document.querySelectorAll('.star-rating .star-icon').forEach(function(s) {
+            const sv = parseInt(s.dataset.val);
+            s.classList.toggle('text-warning', sv <= val);
+            s.classList.toggle('text-muted', sv > val);
+            s.classList.toggle('opacity-25', sv > val);
+        });
+    });
+});
+const ratingContainer = document.querySelector('.star-rating');
+if (ratingContainer) {
+    ratingContainer.addEventListener('mouseleave', function() {
+        const checked = this.querySelector('input:checked');
+        const val = checked ? parseInt(checked.value) : 0;
+        this.querySelectorAll('.star-icon').forEach(function(s) {
+            const sv = parseInt(s.dataset.val);
+            s.classList.toggle('text-warning', sv <= val);
+            s.classList.toggle('text-muted', sv > val);
+            s.classList.toggle('opacity-25', sv > val);
+        });
+    });
+}
+
+// Favorite toggle
+const favBtn = document.querySelector('.fav-btn');
+if (favBtn) {
+    favBtn.addEventListener('click', function() {
+        const courseId = this.dataset.courseId;
+        fetch('/course/' + courseId + '/favorite', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                const icon = favBtn.querySelector('i');
+                icon.classList.toggle('text-danger', data.is_favorite);
+                icon.classList.toggle('text-muted', !data.is_favorite);
+            });
+    });
+}
+</script>
 {% endblock %}

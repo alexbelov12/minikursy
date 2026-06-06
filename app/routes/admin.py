@@ -1,10 +1,11 @@
 from functools import wraps
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Lesson, Question, Answer, User, UserProgress
+from app.models import Course, Lesson, Question, Answer, User, UserProgress, Notification
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
 
 def admin_required(f):
     @wraps(f)
@@ -14,6 +15,18 @@ def admin_required(f):
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)
     return decorated
+
+
+def _notify_all_users(course):
+    users = User.query.filter_by(is_admin=False).all()
+    for u in users:
+        db.session.add(Notification(
+            user_id=u.id,
+            type='new_course',
+            message=f'Новый курс: {course.title}',
+            related_id=course.id
+        ))
+
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -27,6 +40,7 @@ def dashboard():
                            courses_count=Course.query.count(),
                            lessons_count=Lesson.query.count(),
                            users_count=User.query.filter_by(is_admin=False).count())
+
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
@@ -76,6 +90,7 @@ def stats():
                            total_users=len(users),
                            total_completions=UserProgress.query.count())
 
+
 # ── Courses ────────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/course/new', methods=['GET', 'POST'])
@@ -83,6 +98,7 @@ def stats():
 @admin_required
 def new_course():
     if request.method == 'POST':
+        is_published = bool(request.form.get('is_published'))
         course = Course(
             title=request.form.get('title', '').strip(),
             description=request.form.get('description', '').strip(),
@@ -90,13 +106,17 @@ def new_course():
             cover_image=request.form.get('cover_image', '').strip() or None,
             category=request.form.get('category', '').strip() or None,
             difficulty=request.form.get('difficulty', '').strip() or None,
-            is_published=bool(request.form.get('is_published'))
+            is_published=is_published
         )
         db.session.add(course)
+        db.session.flush()
+        if is_published:
+            _notify_all_users(course)
         db.session.commit()
         flash('Курс успешно создан!', 'success')
         return redirect(url_for('admin.edit_course', course_id=course.id))
     return render_template('admin/course_form.html', course=None)
+
 
 @admin_bp.route('/course/<int:course_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -104,6 +124,7 @@ def new_course():
 def edit_course(course_id):
     course = Course.query.get_or_404(course_id)
     if request.method == 'POST':
+        was_published = course.is_published
         course.title = request.form.get('title', '').strip()
         course.description = request.form.get('description', '').strip()
         course.short_description = request.form.get('short_description', '').strip()
@@ -111,9 +132,12 @@ def edit_course(course_id):
         course.category = request.form.get('category', '').strip() or None
         course.difficulty = request.form.get('difficulty', '').strip() or None
         course.is_published = bool(request.form.get('is_published'))
+        if not was_published and course.is_published:
+            _notify_all_users(course)
         db.session.commit()
         flash('Курс обновлён!', 'success')
     return render_template('admin/course_form.html', course=course)
+
 
 @admin_bp.route('/course/<int:course_id>/delete', methods=['POST'])
 @login_required
@@ -124,6 +148,7 @@ def delete_course(course_id):
     db.session.commit()
     flash('Курс удалён', 'info')
     return redirect(url_for('admin.dashboard'))
+
 
 # ── Lessons ────────────────────────────────────────────────────────────────────
 
@@ -149,6 +174,7 @@ def new_lesson(course_id):
     return render_template('admin/lesson_form.html', course=course, lesson=None,
                            next_order=len(course.lessons))
 
+
 @admin_bp.route('/lesson/<int:lesson_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -165,6 +191,7 @@ def edit_lesson(lesson_id):
     return render_template('admin/lesson_form.html', course=lesson.course, lesson=lesson,
                            next_order=lesson.order)
 
+
 @admin_bp.route('/lesson/<int:lesson_id>/delete', methods=['POST'])
 @login_required
 @admin_required
@@ -175,6 +202,28 @@ def delete_lesson(lesson_id):
     db.session.commit()
     flash('Урок удалён', 'info')
     return redirect(url_for('admin.edit_course', course_id=course_id))
+
+
+# ── AI Content Generator ───────────────────────────────────────────────────────
+
+@admin_bp.route('/lesson/<int:lesson_id>/ai-generate-content', methods=['POST'])
+@login_required
+@admin_required
+def ai_generate_content(lesson_id):
+    Lesson.query.get_or_404(lesson_id)
+    topic = request.form.get('topic', '').strip()
+    if not topic:
+        return jsonify({'error': 'Укажите тему урока'}), 400
+    lang = session.get('lang', 'ru')
+    try:
+        from app.ai import generate_lesson_content
+        html = generate_lesson_content(topic, lang)
+        return jsonify({'html': html})
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
+    except Exception as e:
+        return jsonify({'error': f'Ошибка генерации: {e}'}), 500
+
 
 # ── AI Question Generator ─────────────────────────────────────────────────────
 
@@ -222,6 +271,7 @@ def ai_generate_questions(lesson_id):
 
     return redirect(url_for('admin.edit_lesson', lesson_id=lesson_id))
 
+
 # ── Questions ──────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/lesson/<int:lesson_id>/question/new', methods=['GET', 'POST'])
@@ -253,6 +303,7 @@ def new_question(lesson_id):
     return render_template('admin/question_form.html', lesson=lesson, question=None,
                            next_order=len(lesson.questions))
 
+
 @admin_bp.route('/question/<int:question_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -281,6 +332,7 @@ def edit_question(question_id):
         return redirect(url_for('admin.edit_lesson', lesson_id=lesson.id))
     return render_template('admin/question_form.html', lesson=lesson, question=question,
                            next_order=question.order)
+
 
 @admin_bp.route('/question/<int:question_id>/delete', methods=['POST'])
 @login_required

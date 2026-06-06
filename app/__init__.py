@@ -31,10 +31,17 @@ def create_app():
     @app.context_processor
     def inject_lang():
         from app.translations import TRANSLATIONS
+        from flask_login import current_user
         lang = session.get('lang', 'ru')
         def t(key):
             trans = TRANSLATIONS.get(lang, TRANSLATIONS['ru'])
             return trans.get(key, TRANSLATIONS['ru'].get(key, key))
-        return dict(t=t, lang=lang)
+        unread_count = 0
+        if current_user.is_authenticated and not current_user.is_admin:
+            from app.models import Notification
+            unread_count = Notification.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).count()
+        return dict(t=t, lang=lang, unread_count=unread_count)
 
     return app

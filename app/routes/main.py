@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for
+from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify
 from flask_login import login_required, current_user
-from app.models import Course, Lesson
+from app import db
+from app.models import Course, Lesson, FavoriteCourse, Notification, BADGE_DEFS
 
 main_bp = Blueprint('main', __name__)
+
 
 @main_bp.route('/set-lang/<lang_code>')
 def set_lang(lang_code):
@@ -10,10 +12,12 @@ def set_lang(lang_code):
         session['lang'] = lang_code
     return redirect(request.referrer or url_for('main.index'))
 
+
 @main_bp.route('/')
 def index():
     courses = Course.query.filter_by(is_published=True).order_by(Course.created_at.desc()).limit(6).all()
     return render_template('index.html', courses=courses)
+
 
 @main_bp.route('/catalog')
 def catalog():
@@ -49,9 +53,15 @@ def catalog():
     diff_order = ['beginner', 'intermediate', 'advanced']
     difficulties = [d for d in diff_order if any(c.difficulty == d for c in all_published)]
 
+    favorite_ids = set()
+    if current_user.is_authenticated:
+        favorite_ids = {f.course_id for f in current_user.favorites}
+
     return render_template('courses/catalog.html', courses=courses, q=q,
                            category=category, difficulty=difficulty, sort=sort,
-                           categories=categories, difficulties=difficulties)
+                           categories=categories, difficulties=difficulties,
+                           favorite_ids=favorite_ids)
+
 
 @main_bp.route('/profile')
 @login_required
@@ -87,8 +97,41 @@ def profile():
     total_max = sum(r.max_score for r in quiz_results)
     avg_percent = int(total_score / total_max * 100) if total_max > 0 else 0
 
+    # Favorites
+    favorites = [f.course for f in current_user.favorites
+                 if f.course.is_published]
+
+    # Badges with definitions
+    badges = []
+    for b in sorted(current_user.badges, key=lambda x: x.earned_at):
+        defn = BADGE_DEFS.get(b.badge_type, {})
+        badges.append({'badge': b, 'defn': defn})
+
     return render_template('profile.html',
                            courses_progress=courses_progress,
                            completed_lessons=len(completed_lesson_ids),
                            quiz_count=len(quiz_results),
-                           avg_percent=avg_percent)
+                           avg_percent=avg_percent,
+                           favorites=favorites,
+                           badges=badges)
+
+
+@main_bp.route('/notifications')
+@login_required
+def notifications():
+    notifs = Notification.query.filter_by(user_id=current_user.id)\
+        .order_by(Notification.created_at.desc()).all()
+    unread = [n for n in notifs if not n.is_read]
+    for n in unread:
+        n.is_read = True
+    db.session.commit()
+    return render_template('main/notifications.html', notifications=notifs)
+
+
+@main_bp.route('/notifications/read-all', methods=['POST'])
+@login_required
+def read_all_notifications():
+    Notification.query.filter_by(user_id=current_user.id, is_read=False)\
+        .update({'is_read': True})
+    db.session.commit()
+    return jsonify({'ok': True})

@@ -144,7 +144,7 @@
                     {% endif %}
                     <h5 class="fw-bold mb-1">{{ course.title }}</h5>
                     <p class="text-muted small mb-3 flex-grow-1">
-                        {{ course.short_description or (course.description[:120] + '...') }}
+                        {{ course.short_description or (course.description | striptags | truncate(120)) }}
                     </p>
 
                     {% set text_c = course.lessons | selectattr('lesson_type', 'eq', 'text') | list | length %}
@@ -162,21 +162,37 @@
                         </span>{% endif %}
                     </div>
 
+                    {% if course.avg_rating > 0 %}
+                    <div class="d-flex align-items-center gap-1 mb-2">
+                        {% for i in range(1,6) %}
+                        <i class="fas fa-star {% if i <= course.avg_rating %}text-warning{% else %}text-muted opacity-25{% endif %}" style="font-size:.7rem;"></i>
+                        {% endfor %}
+                        <span class="small text-muted ms-1">{{ course.avg_rating }} ({{ course.review_count }})</span>
+                    </div>
+                    {% endif %}
+
                     <div class="d-flex align-items-center justify-content-between">
                         <span class="text-muted small">
                             <i class="fas fa-list-ul me-1" aria-hidden="true"></i>
                             {{ course.lessons | length }} {{ t('catalog.lessons') }}
                         </span>
-                        {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('courses.course', course_id=course.id) }}"
-                           class="btn btn-primary btn-sm px-3">
-                            {{ t('catalog.open') }} <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i>
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
-                            {{ t('nav.login') }}
-                        </a>
-                        {% endif %}
+                        <div class="d-flex gap-1 align-items-center">
+                            {% if current_user.is_authenticated %}
+                            <button class="btn btn-sm btn-outline-secondary fav-btn py-0 px-2"
+                                    data-course-id="{{ course.id }}"
+                                    aria-label="В избранное">
+                                <i class="fas fa-heart {% if course.id in favorite_ids %}text-danger{% else %}text-muted{% endif %}"></i>
+                            </button>
+                            <a href="{{ url_for('courses.course', course_id=course.id) }}"
+                               class="btn btn-primary btn-sm px-3">
+                                {{ t('catalog.open') }} <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i>
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
+                                {{ t('nav.login') }}
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </article>
@@ -194,5 +210,18 @@ function applyCatalogSort(sel) {
     url.searchParams.set('sort', sel.value);
     window.location = url.toString();
 }
+
+document.querySelectorAll('.fav-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const courseId = this.dataset.courseId;
+        fetch('/course/' + courseId + '/favorite', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                const icon = btn.querySelector('i');
+                icon.classList.toggle('text-danger', data.is_favorite);
+                icon.classList.toggle('text-muted', !data.is_favorite);
+            });
+    });
+});
 </script>
 {% endblock %}

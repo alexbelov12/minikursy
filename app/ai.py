@@ -76,6 +76,37 @@ def generate_quiz_questions(lesson_content, lesson_title, num_questions=5, lang=
     return json.loads(text.strip())
 
 
+def generate_lesson_content(topic: str, lang: str = 'ru') -> str:
+    """Generate HTML lesson content for the given topic."""
+    lang_map = {
+        'ru': 'на русском языке',
+        'kz': 'на казахском языке',
+        'en': 'in English',
+    }
+    lang_str = lang_map.get(lang, 'на русском языке')
+
+    prompt = f"""Создай подробный образовательный урок {lang_str} на тему: «{topic}».
+
+Структура урока:
+- Вводный параграф (2-3 предложения о теме)
+- 3-5 основных разделов с содержательными заголовками
+- В каждом разделе: объяснение + примеры или практические советы
+- Краткое заключение
+
+Форматирование — используй ТОЛЬКО следующие HTML-теги:
+- <h2> для названий разделов
+- <p> для параграфов
+- <ul><li> и <ol><li> для списков
+- <strong> для ключевых понятий
+- <code> для кода и технических терминов (если уместно)
+- <blockquote> для важных замечаний (если уместно)
+
+Верни ТОЛЬКО HTML-контент без markdown, без тегов html/body/head/style/script.
+Начни прямо с первого тега контента."""
+
+    return _generate(prompt, max_tokens=3000)
+
+
 def chat_with_lesson(user_message, lesson_content, lesson_title, lang='ru'):
     lang_instr = {
         'ru': 'Отвечай на русском языке. Будь краток и конкретен.',
