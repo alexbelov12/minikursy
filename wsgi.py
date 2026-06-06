@@ -58,6 +58,26 @@ with app.app_context():
     except Exception:
         pass
 
+    try:
+        from sqlalchemy import text, inspect
+        insp = inspect(db.engine)
+        lesson_cols = [c['name'] for c in insp.get_columns('lesson')]
+        with db.engine.connect() as conn:
+            if 'quiz_max_attempts' not in lesson_cols:
+                conn.execute(text('ALTER TABLE lesson ADD COLUMN quiz_max_attempts INTEGER'))
+                conn.commit()
+            if 'quiz_reset_hours' not in lesson_cols:
+                conn.execute(text('ALTER TABLE lesson ADD COLUMN quiz_reset_hours INTEGER'))
+                conn.commit()
+        insp2 = inspect(db.engine)
+        qr_cols = [c['name'] for c in insp2.get_columns('user_quiz_result')]
+        with db.engine.connect() as conn:
+            if 'attempts' not in qr_cols:
+                conn.execute(text('ALTER TABLE user_quiz_result ADD COLUMN attempts INTEGER DEFAULT 1'))
+                conn.commit()
+    except Exception:
+        pass
+
     if not User.query.filter_by(is_admin=True).first():
         admin = User(username='admin', email='admin@platform.com', is_admin=True)
         admin.set_password('admin123')

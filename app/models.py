@@ -117,6 +117,8 @@ class Lesson(db.Model):
     lesson_type = db.Column(db.String(20), default='text')
     order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    quiz_max_attempts = db.Column(db.Integer, nullable=True)
+    quiz_reset_hours = db.Column(db.Integer, nullable=True)
 
     questions = db.relationship('Question', backref='lesson', lazy=True,
                                 order_by='Question.order', cascade='all, delete-orphan')
@@ -164,6 +166,7 @@ class UserQuizResult(db.Model):
     score = db.Column(db.Integer, default=0)
     max_score = db.Column(db.Integer, default=0)
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    attempts = db.Column(db.Integer, default=1)
 
 
 class Certificate(db.Model):

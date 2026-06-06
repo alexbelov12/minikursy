@@ -100,10 +100,22 @@ def lesson(lesson_id):
     completed_ids = {p.lesson_id for p in current_user.progress}
 
     quiz_result = None
+    quiz_locked = False
+    quiz_unlock_at = None
     if lesson.lesson_type == 'quiz':
         quiz_result = UserQuizResult.query.filter_by(
             user_id=current_user.id, lesson_id=lesson_id
         ).first()
+        if lesson.quiz_max_attempts and quiz_result:
+            if (quiz_result.attempts or 0) >= lesson.quiz_max_attempts:
+                if lesson.quiz_reset_hours:
+                    from datetime import timedelta
+                    unlock_at = quiz_result.completed_at + timedelta(hours=lesson.quiz_reset_hours)
+                    if datetime.utcnow() < unlock_at:
+                        quiz_locked = True
+                        quiz_unlock_at = unlock_at
+                else:
+                    quiz_locked = True
 
     # Track view for history
     view = LessonView.query.filter_by(user_id=current_user.id, lesson_id=lesson_id).first()
@@ -123,6 +135,8 @@ def lesson(lesson_id):
                            prev_lesson=prev_lesson,
                            next_lesson=next_lesson,
                            quiz_result=quiz_result,
+                           quiz_locked=quiz_locked,
+                           quiz_unlock_at=quiz_unlock_at,
                            preview=False,
                            user_note=user_note,
                            is_first_lesson=is_first)
@@ -149,6 +163,28 @@ def complete_lesson(lesson_id):
 def submit_quiz(lesson_id):
     lesson = Lesson.query.get_or_404(lesson_id)
 
+    # Check attempt limit
+    result = UserQuizResult.query.filter_by(
+        user_id=current_user.id, lesson_id=lesson_id
+    ).first()
+
+    if lesson.quiz_max_attempts and result:
+        attempts_used = result.attempts or 1
+        if attempts_used >= lesson.quiz_max_attempts:
+            # Check if reset window has passed
+            if lesson.quiz_reset_hours:
+                from datetime import timedelta
+                unlock_at = result.completed_at + timedelta(hours=lesson.quiz_reset_hours)
+                if datetime.utcnow() < unlock_at:
+                    flash(f'Превышен лимит попыток ({lesson.quiz_max_attempts}). '
+                          f'Повтор доступен {unlock_at.strftime("%d.%m %H:%M")} UTC.', 'danger')
+                    return redirect(url_for('courses.lesson', lesson_id=lesson_id))
+                else:
+                    result.attempts = 0
+            else:
+                flash(f'Превышен лимит попыток ({lesson.quiz_max_attempts}).', 'danger')
+                return redirect(url_for('courses.lesson', lesson_id=lesson_id))
+
     score = 0
     max_score = len(lesson.questions)
 
@@ -161,7 +197,6 @@ def submit_quiz(lesson_id):
             if chosen_answer and chosen_answer.is_correct:
                 score += 1
                 is_correct = True
-        # Upsert per-question answer for stats
         qa = UserQuizAnswer.query.filter_by(
             user_id=current_user.id, question_id=question.id
         ).first()
@@ -176,18 +211,15 @@ def submit_quiz(lesson_id):
                 is_correct=is_correct
             ))
 
-    result = UserQuizResult.query.filter_by(
-        user_id=current_user.id, lesson_id=lesson_id
-    ).first()
-
     if result:
         result.score = score
         result.max_score = max_score
         result.completed_at = datetime.utcnow()
+        result.attempts = (result.attempts or 0) + 1
     else:
         result = UserQuizResult(
             user_id=current_user.id, lesson_id=lesson_id,
-            score=score, max_score=max_score
+            score=score, max_score=max_score, attempts=1
         )
         db.session.add(result)
 

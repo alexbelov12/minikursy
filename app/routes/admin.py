@@ -184,13 +184,18 @@ def new_lesson(course_id):
     course = Course.query.get_or_404(course_id)
     if request.method == 'POST':
         lesson_type = request.form.get('lesson_type', 'text')
+        def _int_or_none(v):
+            try: return int(v) if v and v.strip() else None
+            except ValueError: return None
         lesson = Lesson(
             course_id=course_id,
             title=request.form.get('title', '').strip(),
             lesson_type=lesson_type,
             content=request.form.get('content', '').strip(),
             video_url=request.form.get('video_url', '').strip(),
-            order=int(request.form.get('order') or len(course.lessons))
+            order=int(request.form.get('order') or len(course.lessons)),
+            quiz_max_attempts=_int_or_none(request.form.get('quiz_max_attempts')),
+            quiz_reset_hours=_int_or_none(request.form.get('quiz_reset_hours'))
         )
         db.session.add(lesson)
         db.session.commit()
@@ -206,11 +211,16 @@ def new_lesson(course_id):
 def edit_lesson(lesson_id):
     lesson = Lesson.query.get_or_404(lesson_id)
     if request.method == 'POST':
+        def _int_or_none(v):
+            try: return int(v) if v and v.strip() else None
+            except ValueError: return None
         lesson.title = request.form.get('title', '').strip()
         lesson.lesson_type = request.form.get('lesson_type', 'text')
         lesson.content = request.form.get('content', '').strip()
         lesson.video_url = request.form.get('video_url', '').strip()
         lesson.order = int(request.form.get('order') or lesson.order)
+        lesson.quiz_max_attempts = _int_or_none(request.form.get('quiz_max_attempts'))
+        lesson.quiz_reset_hours = _int_or_none(request.form.get('quiz_reset_hours'))
         db.session.commit()
         flash('Урок обновлён!', 'success')
     return render_template('admin/lesson_form.html', course=lesson.course, lesson=lesson,

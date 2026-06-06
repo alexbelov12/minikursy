@@ -131,6 +131,20 @@ def profile():
     referral_link = req.host_url.rstrip('/') + url_for('auth.register') + \
         '?ref=' + (current_user.referral_code or '')
 
+    # Streak activity calendar (last 60 days)
+    from datetime import date, timedelta
+    today = date.today()
+    sixty_days_ago = datetime.combine(today - timedelta(days=59), datetime.min.time())
+    recent_progress = UserProgress.query.filter(
+        UserProgress.user_id == current_user.id,
+        UserProgress.completed_at >= sixty_days_ago
+    ).all()
+    active_dates = set()
+    for p in recent_progress:
+        if p.completed_at:
+            active_dates.add(p.completed_at.date().isoformat())
+    streak_days_list = [(today - timedelta(days=i)).isoformat() for i in range(59, -1, -1)]
+
     return render_template('profile.html',
                            courses_progress=courses_progress,
                            completed_lessons=len(completed_lesson_ids),
@@ -141,7 +155,9 @@ def profile():
                            recent_history=recent_history,
                            used_promos=used_promos,
                            referral_link=referral_link,
-                           referral_count=referral_count)
+                           referral_count=referral_count,
+                           streak_days_list=streak_days_list,
+                           active_dates=active_dates)
 
 
 @main_bp.route('/profile/avatar', methods=['POST'])

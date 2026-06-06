@@ -143,13 +143,20 @@ body.focus-mode .lesson-breadcrumb { display: none !important; }
                                  style="width: {{ (quiz_result.score / quiz_result.max_score * 100) | int if quiz_result.max_score > 0 else 0 }}%">
                             </div>
                         </div>
-                        <small class="mt-1 d-block">
-                            {% if quiz_result.score == quiz_result.max_score %}
-                                {{ t('lesson.perfect') }}
-                            {% else %}
-                                {{ t('lesson.try_again') }}
+                        <div class="d-flex align-items-center justify-content-between mt-1 flex-wrap gap-1">
+                            <small>
+                                {% if quiz_result.score == quiz_result.max_score %}
+                                    {{ t('lesson.perfect') }}
+                                {% else %}
+                                    {{ t('lesson.try_again') }}
+                                {% endif %}
+                            </small>
+                            {% if lesson.quiz_max_attempts %}
+                            <small class="text-muted">
+                                Попыток: {{ quiz_result.attempts or 0 }}/{{ lesson.quiz_max_attempts }}
+                            </small>
                             {% endif %}
-                        </small>
+                        </div>
                     </div>
                     {% endif %}
 
@@ -159,6 +166,16 @@ body.focus-mode .lesson-breadcrumb { display: none !important; }
                         <i class="fas fa-lock me-2"></i>
                         Войдите или зарегистрируйтесь для прохождения тестов.
                         <a href="{{ url_for('auth.register') }}" class="alert-link">Регистрация</a>
+                    </div>
+                    {% elif quiz_locked %}
+                    <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+                        <i class="fas fa-lock fa-lg flex-shrink-0"></i>
+                        <div>
+                            <strong>Тест заблокирован</strong> — исчерпан лимит попыток ({{ lesson.quiz_max_attempts }}).
+                            {% if quiz_unlock_at %}
+                            <div class="small mt-1">Повтор доступен: {{ quiz_unlock_at.strftime('%d.%m.%Y %H:%M') }} UTC</div>
+                            {% endif %}
+                        </div>
                     </div>
                     {% else %}
                     <form method="POST" action="{{ url_for('courses.submit_quiz', lesson_id=lesson.id) }}"
@@ -185,6 +202,11 @@ body.focus-mode .lesson-breadcrumb { display: none !important; }
                         </div>
                         {% endfor %}
                         <div class="text-center mt-3">
+                            {% if lesson.quiz_max_attempts and quiz_result %}
+                            <div class="text-muted small mb-2">
+                                Попытка {{ (quiz_result.attempts or 0) + 1 }} из {{ lesson.quiz_max_attempts }}
+                            </div>
+                            {% endif %}
                             <button type="submit" class="btn btn-warning btn-lg px-5 fw-semibold">
                                 <i class="fas fa-paper-plane me-2" aria-hidden="true"></i>
                                 {% if quiz_result %}{{ t('lesson.retake') }}{% else %}{{ t('lesson.submit') }}{% endif %}

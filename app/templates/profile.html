@@ -224,6 +224,33 @@
     </div>
     {% endif %}
 
+    <!-- Streak Calendar -->
+    <div class="panel mb-4 fade-in">
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <h5 class="fw-bold mb-0">
+                <i class="fas fa-fire text-warning me-2"></i>Активность за 60 дней
+            </h5>
+            <span class="badge" style="background:#ffedd5;color:#c2410c;font-size:.8rem;padding:5px 10px;">
+                🔥 {{ current_user.streak_days or 0 }}
+                {{ 'день' if (current_user.streak_days or 0) == 1 else ('дня' if (current_user.streak_days or 0) < 5 else 'дней') }}
+                подряд
+            </span>
+        </div>
+        <div id="streakGrid" style="display:flex;flex-wrap:wrap;gap:3px;">
+            {% for d in streak_days_list %}
+            <div class="streak-cell" data-date="{{ d }}"
+                 style="width:12px;height:12px;border-radius:3px;
+                        background:{% if d in active_dates %}#22c55e{% else %}var(--border){% endif %};
+                        flex-shrink:0;"
+                 title="{{ d }}"></div>
+            {% endfor %}
+        </div>
+        <div class="d-flex gap-3 mt-2 text-muted" style="font-size:.72rem;">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#22c55e;"></span> Урок завершён</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--border);"></span> Нет активности</span>
+        </div>
+    </div>
+
     <!-- Referral -->
     <div class="panel mb-4 fade-in">
         <h5 class="fw-bold mb-3">
