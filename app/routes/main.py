@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify
+from datetime import datetime
+from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Lesson, FavoriteCourse, Notification, BADGE_DEFS
+from app.models import (Course, Lesson, FavoriteCourse, Notification, BADGE_DEFS,
+                         User, UserProgress, LessonView, UserBadge, PromoCode, UserPromoCode)
 
 main_bp = Blueprint('main', __name__)
 
@@ -28,9 +30,14 @@ def catalog():
 
     query = Course.query.filter_by(is_published=True)
     if q:
+        lesson_course_ids = db.session.query(Lesson.course_id).filter(
+            Lesson.title.ilike(f'%{q}%') | Lesson.content.ilike(f'%{q}%')
+        ).subquery()
         query = query.filter(
-            Course.title.ilike(f'%{q}%') | Course.description.ilike(f'%{q}%') |
-            Course.short_description.ilike(f'%{q}%')
+            Course.title.ilike(f'%{q}%') |
+            Course.description.ilike(f'%{q}%') |
+            Course.short_description.ilike(f'%{q}%') |
+            Course.id.in_(lesson_course_ids)
         )
     if category:
         query = query.filter_by(category=category)
@@ -97,15 +104,24 @@ def profile():
     total_max = sum(r.max_score for r in quiz_results)
     avg_percent = int(total_score / total_max * 100) if total_max > 0 else 0
 
-    # Favorites
-    favorites = [f.course for f in current_user.favorites
-                 if f.course.is_published]
+    favorites = [f.course for f in current_user.favorites if f.course.is_published]
 
-    # Badges with definitions
     badges = []
     for b in sorted(current_user.badges, key=lambda x: x.earned_at):
         defn = BADGE_DEFS.get(b.badge_type, {})
         badges.append({'badge': b, 'defn': defn})
+
+    # Recent lesson history (last 10 viewed)
+    recent_views = LessonView.query.filter_by(user_id=current_user.id)\
+        .order_by(LessonView.viewed_at.desc()).limit(10).all()
+    recent_history = []
+    for v in recent_views:
+        lesson = Lesson.query.get(v.lesson_id)
+        if lesson and lesson.course.is_published:
+            recent_history.append({'lesson': lesson, 'viewed_at': v.viewed_at})
+
+    # Applied promo codes
+    used_promos = UserPromoCode.query.filter_by(user_id=current_user.id).all()
 
     return render_template('profile.html',
                            courses_progress=courses_progress,
@@ -113,7 +129,19 @@ def profile():
                            quiz_count=len(quiz_results),
                            avg_percent=avg_percent,
                            favorites=favorites,
-                           badges=badges)
+                           badges=badges,
+                           recent_history=recent_history,
+                           used_promos=used_promos)
+
+
+@main_bp.route('/profile/avatar', methods=['POST'])
+@login_required
+def update_avatar():
+    url = request.form.get('avatar_url', '').strip()
+    current_user.avatar_url = url or None
+    db.session.commit()
+    flash('Аватар обновлён!', 'success')
+    return redirect(url_for('main.profile'))
 
 
 @main_bp.route('/notifications')
@@ -135,3 +163,72 @@ def read_all_notifications():
         .update({'is_read': True})
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@main_bp.route('/leaderboard')
+def leaderboard():
+    users = User.query.filter_by(is_admin=False).all()
+    board = []
+    for user in users:
+        completed_lessons = len(user.progress)
+        if completed_lessons == 0:
+            continue
+        # Count fully completed courses
+        course_map = {}
+        for p in user.progress:
+            lesson = Lesson.query.get(p.lesson_id)
+            if lesson:
+                cid = lesson.course_id
+                total = len(lesson.course.lessons)
+                if cid not in course_map:
+                    course_map[cid] = {'total': total, 'done': 0}
+                course_map[cid]['done'] += 1
+        completed_courses = sum(1 for d in course_map.values()
+                                if d['total'] > 0 and d['done'] >= d['total'])
+        board.append({
+            'user': user,
+            'completed_lessons': completed_lessons,
+            'completed_courses': completed_courses,
+            'badges_count': len(user.badges),
+            'streak': user.streak_days or 0,
+        })
+
+    board.sort(key=lambda x: (-x['completed_lessons'], -x['completed_courses'], -x['badges_count']))
+    return render_template('main/leaderboard.html', board=board[:50])
+
+
+@main_bp.route('/promo', methods=['GET', 'POST'])
+@login_required
+def apply_promo():
+    if request.method == 'POST':
+        code_str = request.form.get('code', '').strip().upper()
+        promo = PromoCode.query.filter_by(code=code_str, is_active=True).first()
+
+        if not promo:
+            flash('Промокод не найден или недействителен', 'danger')
+        elif promo.expires_at and promo.expires_at < datetime.utcnow():
+            flash('Срок действия промокода истёк', 'warning')
+        elif promo.max_uses > 0 and promo.uses_count >= promo.max_uses:
+            flash('Промокод исчерпан', 'warning')
+        else:
+            existing = UserPromoCode.query.filter_by(
+                user_id=current_user.id, promo_code_id=promo.id
+            ).first()
+            if existing:
+                flash('Вы уже использовали этот промокод', 'info')
+            else:
+                db.session.add(UserPromoCode(user_id=current_user.id, promo_code_id=promo.id))
+                promo.uses_count += 1
+                # Award promo_member badge if not already earned
+                has_badge = UserBadge.query.filter_by(
+                    user_id=current_user.id, badge_type='promo_member'
+                ).first()
+                if not has_badge:
+                    db.session.add(UserBadge(user_id=current_user.id, badge_type='promo_member'))
+                db.session.commit()
+                desc = f' — {promo.description}' if promo.description else ''
+                flash(f'Промокод «{promo.code}» активирован!{desc}', 'success')
+                return redirect(url_for('main.apply_promo'))
+
+    used_promos = UserPromoCode.query.filter_by(user_id=current_user.id).all()
+    return render_template('main/promo.html', used_promos=used_promos)

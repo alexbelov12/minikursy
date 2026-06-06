@@ -86,6 +86,8 @@ def forgot_password():
         return redirect(url_for('main.index'))
 
     reset_url = None
+    email_sent = False
+
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
         user = User.query.filter_by(email=email).first()
@@ -99,10 +101,24 @@ def forgot_password():
             db.session.add(token)
             db.session.commit()
             reset_url = url_for('auth.reset_password', token=token_str, _external=True)
+
+            # Try to send via email; fall back to showing the link on page
+            from app.email import send_email
+            html_body = f'''
+            <p>Здравствуйте, {user.username}!</p>
+            <p>Для сброса пароля перейдите по ссылке:</p>
+            <p><a href="{reset_url}">{reset_url}</a></p>
+            <p>Ссылка действительна 1 час.</p>
+            '''
+            email_sent = send_email(user.email, 'Сброс пароля — МиниКурсы', html_body)
+            if email_sent:
+                reset_url = None  # hide link when email sent successfully
         else:
             flash('Если такой email зарегистрирован, вы получите ссылку для сброса', 'info')
 
-    return render_template('auth/forgot_password.html', reset_url=reset_url)
+    return render_template('auth/forgot_password.html',
+                           reset_url=reset_url,
+                           email_sent=email_sent)
 
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])

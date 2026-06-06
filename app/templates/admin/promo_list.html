@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Промокоды — Админ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="section-title mb-0">
+            <i class="fas fa-ticket-alt me-2"></i>Промокоды
+        </h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Назад
+            </a>
+            <a href="{{ url_for('admin.new_promo') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Создать промокод
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} mb-3">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    {% if promos %}
+    <div class="panel">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr class="text-muted small">
+                        <th>Код</th>
+                        <th>Описание</th>
+                        <th>Использований</th>
+                        <th>Лимит</th>
+                        <th>Истекает</th>
+                        <th>Статус</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for promo in promos %}
+                    <tr>
+                        <td>
+                            <span class="fw-bold" style="letter-spacing:.07em;font-family:monospace;">
+                                {{ promo.code }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">{{ promo.description or '—' }}</td>
+                        <td>
+                            <span class="fw-semibold">{{ promo.uses_count }}</span>
+                            <button class="btn btn-sm btn-link text-muted p-0 ms-1"
+                                    type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#users_{{ promo.id }}"
+                                    title="Показать пользователей">
+                                <i class="fas fa-users" style="font-size:.75rem;"></i>
+                            </button>
+                            <div class="collapse mt-1" id="users_{{ promo.id }}">
+                                {% if promo.used_by %}
+                                {% for upc in promo.used_by %}
+                                <div class="text-muted" style="font-size:.72rem;">
+                                    {{ upc.user.username }} — {{ upc.used_at.strftime('%d.%m.%Y') }}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="text-muted small">Не использован</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-muted small">
+                            {% if promo.max_uses > 0 %}{{ promo.max_uses }}{% else %}∞{% endif %}
+                        </td>
+                        <td class="text-muted small">
+                            {% if promo.expires_at %}
+                                {{ promo.expires_at.strftime('%d.%m.%Y') }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if promo.is_active %}
+                            <span class="badge bg-success">Активен</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Отключён</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <form method="POST" action="{{ url_for('admin.toggle_promo', promo_id=promo.id) }}">
+                                    <button type="submit"
+                                            class="btn btn-sm {% if promo.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} py-0 px-2">
+                                        <i class="fas fa-{% if promo.is_active %}pause{% else %}play{% endif %}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.delete_promo', promo_id=promo.id) }}"
+                                      onsubmit="return confirm('Удалить промокод?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-ticket-alt text-muted d-block" style="font-size:3rem;opacity:.2;"></i>
+        <h5 class="fw-bold mt-3">Промокодов нет</h5>
+        <a href="{{ url_for('admin.new_promo') }}" class="btn btn-primary mt-2">
+            <i class="fas fa-plus me-2"></i>Создать первый промокод
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

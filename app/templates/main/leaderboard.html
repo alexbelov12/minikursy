@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Лидерборд — {{ t('nav.brand') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="section-title mb-1">
+                <i class="fas fa-trophy text-warning me-2"></i>Лидерборд
+            </h1>
+            <p class="text-muted mb-0">Топ студентов по прогрессу обучения</p>
+        </div>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('main.profile') }}" class="btn btn-outline-primary">
+            <i class="fas fa-user me-2"></i>Мой профиль
+        </a>
+        {% endif %}
+    </div>
+
+    {% if board %}
+    <div class="panel">
+        <div class="d-flex flex-column gap-0">
+            {% for entry in board %}
+            {% set rank = loop.index %}
+            <div class="d-flex align-items-center gap-3 py-3
+                         {% if not loop.last %}border-bottom{% endif %}
+                         {% if current_user.is_authenticated and entry.user.id == current_user.id %}
+                         rounded-2{% endif %}"
+                 style="{% if current_user.is_authenticated and entry.user.id == current_user.id %}background:var(--bg);padding: 0.75rem 0.5rem;{% endif %}">
+
+                <!-- Rank -->
+                <div class="fw-bold text-center flex-shrink-0"
+                     style="width:36px;font-size:{% if rank <= 3 %}1.1rem{% else %}.9rem{% endif %};">
+                    {% if rank == 1 %}🥇
+                    {% elif rank == 2 %}🥈
+                    {% elif rank == 3 %}🥉
+                    {% else %}{{ rank }}{% endif %}
+                </div>
+
+                <!-- Avatar -->
+                <div class="flex-shrink-0">
+                    {% if entry.user.avatar_url %}
+                    <img src="{{ entry.user.avatar_url }}" alt=""
+                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                    {% else %}
+                    <div class="user-avatar"
+                         style="width:40px;height:40px;font-size:.9rem;line-height:40px;text-align:center;">
+                        {{ entry.user.username[0] }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Name -->
+                <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold text-truncate">
+                        {{ entry.user.username }}
+                        {% if current_user.is_authenticated and entry.user.id == current_user.id %}
+                        <span class="badge bg-primary ms-1" style="font-size:.65rem;">Вы</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-muted" style="font-size:.75rem;">
+                        {{ entry.completed_courses }} курс{{ 'а' if entry.completed_courses in [2,3,4] else ('ов' if entry.completed_courses != 1 else '') }} завершено
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="d-flex gap-3 flex-shrink-0 text-center">
+                    <div>
+                        <div class="fw-bold text-primary">{{ entry.completed_lessons }}</div>
+                        <div class="text-muted" style="font-size:.65rem;">уроков</div>
+                    </div>
+                    <div class="d-none d-sm-block">
+                        <div class="fw-bold text-warning">{{ entry.badges_count }}</div>
+                        <div class="text-muted" style="font-size:.65rem;">значков</div>
+                    </div>
+                    {% if entry.streak > 0 %}
+                    <div class="d-none d-md-block">
+                        <div class="fw-bold" style="color:#f97316;">🔥{{ entry.streak }}</div>
+                        <div class="text-muted" style="font-size:.65rem;">стрик</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-trophy text-muted d-block" style="font-size:3rem;opacity:.2;"></i>
+        <h5 class="fw-bold mt-3">Пока нет данных</h5>
+        <p class="text-muted">Начните проходить уроки, чтобы попасть в лидерборд!</p>
+        <a href="{{ url_for('main.catalog') }}" class="btn btn-primary">
+            <i class="fas fa-book-open me-2"></i>Каталог курсов
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,8 +1,10 @@
+from datetime import datetime
 from functools import wraps
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Lesson, Question, Answer, User, UserProgress, Notification
+from app.models import (Course, Lesson, Question, Answer, User, UserProgress,
+                         Notification, LessonAttachment, PromoCode)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -204,6 +206,44 @@ def delete_lesson(lesson_id):
     return redirect(url_for('admin.edit_course', course_id=course_id))
 
 
+# ── Attachments ────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/lesson/<int:lesson_id>/attachment/add', methods=['POST'])
+@login_required
+@admin_required
+def add_attachment(lesson_id):
+    lesson = Lesson.query.get_or_404(lesson_id)
+    name = request.form.get('att_name', '').strip()
+    url = request.form.get('att_url', '').strip()
+    file_type = request.form.get('att_type', 'link')
+    if name and url:
+        att = LessonAttachment(
+            lesson_id=lesson_id,
+            name=name,
+            url=url,
+            file_type=file_type,
+            order=len(lesson.attachments)
+        )
+        db.session.add(att)
+        db.session.commit()
+        flash('Файл прикреплён!', 'success')
+    else:
+        flash('Укажите название и ссылку', 'warning')
+    return redirect(url_for('admin.edit_lesson', lesson_id=lesson_id))
+
+
+@admin_bp.route('/attachment/<int:att_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_attachment(att_id):
+    att = LessonAttachment.query.get_or_404(att_id)
+    lesson_id = att.lesson_id
+    db.session.delete(att)
+    db.session.commit()
+    flash('Вложение удалено', 'info')
+    return redirect(url_for('admin.edit_lesson', lesson_id=lesson_id))
+
+
 # ── AI Content Generator ───────────────────────────────────────────────────────
 
 @admin_bp.route('/lesson/<int:lesson_id>/ai-generate-content', methods=['POST'])
@@ -344,3 +384,68 @@ def delete_question(question_id):
     db.session.commit()
     flash('Вопрос удалён', 'info')
     return redirect(url_for('admin.edit_lesson', lesson_id=lesson_id))
+
+
+# ── Promo Codes ────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/promos')
+@login_required
+@admin_required
+def promo_list():
+    promos = PromoCode.query.order_by(PromoCode.created_at.desc()).all()
+    return render_template('admin/promo_list.html', promos=promos)
+
+
+@admin_bp.route('/promos/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_promo():
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip().upper()
+        if not code:
+            flash('Укажите код', 'danger')
+            return render_template('admin/promo_form.html', promo=None)
+        if PromoCode.query.filter_by(code=code).first():
+            flash('Такой промокод уже существует', 'danger')
+            return render_template('admin/promo_form.html', promo=None)
+        expires_str = request.form.get('expires_at', '').strip()
+        expires_at = None
+        if expires_str:
+            try:
+                expires_at = datetime.strptime(expires_str, '%Y-%m-%d')
+            except ValueError:
+                pass
+        promo = PromoCode(
+            code=code,
+            description=request.form.get('description', '').strip() or None,
+            max_uses=int(request.form.get('max_uses') or 0),
+            expires_at=expires_at,
+            is_active=bool(request.form.get('is_active'))
+        )
+        db.session.add(promo)
+        db.session.commit()
+        flash(f'Промокод «{code}» создан!', 'success')
+        return redirect(url_for('admin.promo_list'))
+    return render_template('admin/promo_form.html', promo=None)
+
+
+@admin_bp.route('/promos/<int:promo_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_promo(promo_id):
+    promo = PromoCode.query.get_or_404(promo_id)
+    promo.is_active = not promo.is_active
+    db.session.commit()
+    flash(f'Промокод {"активирован" if promo.is_active else "деактивирован"}', 'info')
+    return redirect(url_for('admin.promo_list'))
+
+
+@admin_bp.route('/promos/<int:promo_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_promo(promo_id):
+    promo = PromoCode.query.get_or_404(promo_id)
+    db.session.delete(promo)
+    db.session.commit()
+    flash('Промокод удалён', 'info')
+    return redirect(url_for('admin.promo_list'))

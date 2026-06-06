@@ -7,9 +7,33 @@
     <!-- Profile header -->
     <div class="panel mb-4 fade-in">
         <div class="d-flex align-items-center gap-3 gap-md-4 flex-wrap flex-sm-nowrap">
-            <div class="profile-avatar" aria-hidden="true">{{ current_user.username[0] }}</div>
-            <div>
-                <h2 class="fw-bold mb-1">{{ current_user.username }}</h2>
+            <!-- Avatar -->
+            <div class="position-relative" style="flex-shrink:0;">
+                {% if current_user.avatar_url %}
+                <img src="{{ current_user.avatar_url }}" alt="{{ current_user.username }}"
+                     class="profile-avatar"
+                     style="width:72px;height:72px;border-radius:50%;object-fit:cover;">
+                {% else %}
+                <div class="profile-avatar" aria-hidden="true">{{ current_user.username[0] }}</div>
+                {% endif %}
+                <button class="btn btn-sm btn-light position-absolute shadow-sm"
+                        style="bottom:-4px;right:-4px;width:26px;height:26px;padding:0;border-radius:50%;"
+                        data-bs-toggle="collapse" data-bs-target="#avatarForm"
+                        title="Изменить аватар">
+                    <i class="fas fa-camera" style="font-size:.6rem;"></i>
+                </button>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <h2 class="fw-bold mb-0">{{ current_user.username }}</h2>
+                    {% if current_user.streak_days and current_user.streak_days > 0 %}
+                    <span class="badge" style="background:#ffedd5;color:#c2410c;font-size:.8rem;padding:5px 10px;">
+                        🔥 {{ current_user.streak_days }}
+                        {{ 'день' if current_user.streak_days == 1 else ('дня' if current_user.streak_days < 5 else 'дней') }}
+                        подряд
+                    </span>
+                    {% endif %}
+                </div>
                 <div class="text-muted mb-1">
                     <i class="fas fa-envelope me-2" aria-hidden="true"></i>{{ current_user.email }}
                 </div>
@@ -18,6 +42,28 @@
                     {{ t('profile.member_since') }} {{ current_user.created_at.strftime('%d.%m.%Y') }}
                 </div>
             </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('main.apply_promo') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-ticket-alt me-1"></i>Промокод
+                </a>
+                <a href="{{ url_for('main.leaderboard') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-trophy me-1"></i>Лидерборд
+                </a>
+            </div>
+        </div>
+        <!-- Avatar URL form (collapsed by default) -->
+        <div class="collapse mt-3" id="avatarForm">
+            <form method="POST" action="{{ url_for('main.update_avatar') }}" class="d-flex gap-2">
+                <input type="url" name="avatar_url" class="form-control form-control-sm"
+                       placeholder="https://... (URL изображения)"
+                       value="{{ current_user.avatar_url or '' }}">
+                <button type="submit" class="btn btn-sm btn-primary px-3">Сохранить</button>
+                {% if current_user.avatar_url %}
+                <button type="submit" name="avatar_url" value="" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-times"></i>
+                </button>
+                {% endif %}
+            </form>
         </div>
     </div>
 
@@ -110,6 +156,59 @@
                     </div>
                 </a>
             </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent History -->
+    {% if recent_history %}
+    <div class="panel mb-4 fade-in">
+        <h5 class="fw-bold mb-3">
+            <i class="fas fa-history text-secondary me-2"></i>Недавно просмотренные
+        </h5>
+        <div class="d-flex flex-column gap-2">
+            {% for item in recent_history %}
+            <a href="{{ url_for('courses.lesson', lesson_id=item.lesson.id) }}"
+               class="d-flex align-items-center gap-3 p-2 rounded-2 text-decoration-none"
+               style="background:var(--bg);border:1px solid var(--border);">
+                <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                    {% if item.lesson.lesson_type == 'video' %}background:#fee2e2;{% elif item.lesson.lesson_type == 'quiz' %}background:#fef9c3;{% else %}background:#dbeafe;{% endif %}">
+                    {% if item.lesson.lesson_type == 'video' %}
+                        <i class="fas fa-play" style="color:#dc2626;font-size:.65rem;"></i>
+                    {% elif item.lesson.lesson_type == 'quiz' %}
+                        <i class="fas fa-clipboard-check" style="color:#d97706;font-size:.65rem;"></i>
+                    {% else %}
+                        <i class="fas fa-file-alt" style="color:#2563eb;font-size:.65rem;"></i>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1 min-width-0">
+                    <div class="small fw-semibold text-truncate" style="color:var(--text);">{{ item.lesson.title }}</div>
+                    <div class="text-muted" style="font-size:.7rem;">{{ item.lesson.course.title }}</div>
+                </div>
+                <span class="text-muted flex-shrink-0" style="font-size:.7rem;">
+                    {{ item.viewed_at.strftime('%d.%m %H:%M') }}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Used Promo Codes -->
+    {% if used_promos %}
+    <div class="panel mb-4 fade-in">
+        <h5 class="fw-bold mb-3">
+            <i class="fas fa-ticket-alt text-purple me-2"></i>Применённые промокоды
+        </h5>
+        <div class="d-flex flex-wrap gap-2">
+            {% for upc in used_promos %}
+            <span class="badge px-3 py-2" style="background:#ede9fe;color:#6d28d9;font-size:.8rem;">
+                <i class="fas fa-check-circle me-1"></i>{{ upc.promo_code.code }}
+                {% if upc.promo_code.description %}
+                <span class="fw-normal opacity-75 ms-1">— {{ upc.promo_code.description }}</span>
+                {% endif %}
+            </span>
             {% endfor %}
         </div>
     </div>

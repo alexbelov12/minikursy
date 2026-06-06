@@ -1,20 +1,26 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, date as date_type
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, login_manager
 
 BADGE_DEFS = {
-    'first_lesson':  {'icon': 'fas fa-check-circle', 'color': '#10b981', 'bg': '#dcfce7',
-                      'name': 'Первый шаг',    'desc': 'Завершил первый урок'},
-    'ten_lessons':   {'icon': 'fas fa-book-reader',  'color': '#3b82f6', 'bg': '#dbeafe',
-                      'name': 'Книжный червь', 'desc': 'Завершил 10 уроков'},
-    'first_course':  {'icon': 'fas fa-graduation-cap','color': '#f59e0b', 'bg': '#fef9c3',
-                      'name': 'Выпускник',    'desc': 'Прошёл первый курс полностью'},
-    'three_courses': {'icon': 'fas fa-trophy',        'color': '#ef4444', 'bg': '#fee2e2',
-                      'name': 'Мастер',       'desc': 'Прошёл 3 курса полностью'},
-    'quiz_perfect':  {'icon': 'fas fa-star',          'color': '#6366f1', 'bg': '#ede9fe',
-                      'name': 'Перфекционист','desc': 'Получил 100% в тесте'},
+    'first_lesson':  {'icon': 'fas fa-check-circle',   'color': '#10b981', 'bg': '#dcfce7',
+                      'name': 'Первый шаг',      'desc': 'Завершил первый урок'},
+    'ten_lessons':   {'icon': 'fas fa-book-reader',    'color': '#3b82f6', 'bg': '#dbeafe',
+                      'name': 'Книжный червь',   'desc': 'Завершил 10 уроков'},
+    'first_course':  {'icon': 'fas fa-graduation-cap', 'color': '#f59e0b', 'bg': '#fef9c3',
+                      'name': 'Выпускник',       'desc': 'Прошёл первый курс полностью'},
+    'three_courses': {'icon': 'fas fa-trophy',         'color': '#ef4444', 'bg': '#fee2e2',
+                      'name': 'Мастер',          'desc': 'Прошёл 3 курса полностью'},
+    'quiz_perfect':  {'icon': 'fas fa-star',           'color': '#6366f1', 'bg': '#ede9fe',
+                      'name': 'Перфекционист',   'desc': 'Получил 100% в тесте'},
+    'streak_7':      {'icon': 'fas fa-fire',           'color': '#f97316', 'bg': '#ffedd5',
+                      'name': '7 дней подряд',   'desc': 'Учился 7 дней подряд'},
+    'streak_30':     {'icon': 'fas fa-fire-alt',       'color': '#dc2626', 'bg': '#fee2e2',
+                      'name': 'Месяц огня',      'desc': 'Учился 30 дней подряд'},
+    'promo_member':  {'icon': 'fas fa-ticket-alt',     'color': '#8b5cf6', 'bg': '#ede9fe',
+                      'name': 'Промо-участник',  'desc': 'Активировал промокод'},
 }
 
 
@@ -30,6 +36,9 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    avatar_url = db.Column(db.String(500))
+    streak_days = db.Column(db.Integer, default=0)
+    last_activity_date = db.Column(db.Date)
 
     progress = db.relationship('UserProgress', backref='user', lazy=True, cascade='all, delete-orphan')
     quiz_results = db.relationship('UserQuizResult', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -40,6 +49,9 @@ class User(UserMixin, db.Model):
     notifications = db.relationship('Notification', backref='user', lazy=True, cascade='all, delete-orphan')
     reset_tokens = db.relationship('PasswordResetToken', backref='user', lazy=True, cascade='all, delete-orphan')
     certificates = db.relationship('Certificate', backref='user', lazy=True, cascade='all, delete-orphan')
+    notes = db.relationship('LessonNote', backref='user', lazy=True, cascade='all, delete-orphan')
+    lesson_views = db.relationship('LessonView', backref='user', lazy=True, cascade='all, delete-orphan')
+    promo_codes = db.relationship('UserPromoCode', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -75,6 +87,15 @@ class Course(db.Model):
     def review_count(self):
         return len(self.reviews)
 
+    @property
+    def enrolled_count(self):
+        lesson_ids = [l.id for l in self.lessons]
+        if not lesson_ids:
+            return 0
+        return db.session.query(UserProgress.user_id).filter(
+            UserProgress.lesson_id.in_(lesson_ids)
+        ).distinct().count()
+
 
 class Lesson(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -92,6 +113,10 @@ class Lesson(db.Model):
     quiz_results = db.relationship('UserQuizResult', backref='lesson', lazy=True, cascade='all, delete-orphan')
     comments = db.relationship('LessonComment', backref='lesson', lazy=True,
                                order_by='LessonComment.created_at', cascade='all, delete-orphan')
+    notes = db.relationship('LessonNote', backref='lesson', lazy=True, cascade='all, delete-orphan')
+    attachments = db.relationship('LessonAttachment', backref='lesson', lazy=True,
+                                  order_by='LessonAttachment.order', cascade='all, delete-orphan')
+    views = db.relationship('LessonView', backref='lesson', lazy=True, cascade='all, delete-orphan')
 
 
 class Question(db.Model):
@@ -196,6 +221,73 @@ class PasswordResetToken(db.Model):
     used = db.Column(db.Boolean, default=False)
 
 
+class LessonNote(db.Model):
+    """Personal notes a student writes per lesson."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
+    text = db.Column(db.Text, nullable=False, default='')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'lesson_id'),)
+
+
+class LessonView(db.Model):
+    """Tracks last-viewed timestamp per user per lesson (for history)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
+    viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'lesson_id'),)
+
+
+class LessonAttachment(db.Model):
+    """Downloadable files / links attached to a lesson by admin."""
+    id = db.Column(db.Integer, primary_key=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    file_type = db.Column(db.String(20), default='link')  # link | pdf | zip | doc
+    order = db.Column(db.Integer, default=0)
+
+
+class PromoCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.String(300))
+    max_uses = db.Column(db.Integer, default=0)   # 0 = unlimited
+    uses_count = db.Column(db.Integer, default=0)
+    expires_at = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    used_by = db.relationship('UserPromoCode', backref='promo_code', lazy=True)
+
+
+class UserPromoCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    promo_code_id = db.Column(db.Integer, db.ForeignKey('promo_code.id'), nullable=False)
+    used_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'promo_code_id'),)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def update_streak(user):
+    """Update user's daily learning streak. Call before award_badges."""
+    today = date_type.today()
+    if user.last_activity_date == today:
+        return
+    if user.last_activity_date and (today - user.last_activity_date).days == 1:
+        user.streak_days = (user.streak_days or 0) + 1
+    else:
+        user.streak_days = 1
+    user.last_activity_date = today
+
+
 def award_badges(user):
     """Check and award any earned badges. Call after progress or quiz updates."""
     earned_types = {b.badge_type for b in user.badges}
@@ -237,3 +329,9 @@ def award_badges(user):
         if result.max_score > 0 and result.score == result.max_score:
             _try_award('quiz_perfect')
             break
+
+    streak = user.streak_days or 0
+    if streak >= 7:
+        _try_award('streak_7')
+    if streak >= 30:
+        _try_award('streak_30')

@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (Course, Lesson, Question, Answer, UserProgress, UserQuizResult,
                          Certificate, CourseReview, LessonComment, FavoriteCourse,
-                         award_badges)
+                         LessonNote, LessonView, award_badges, update_streak)
 
 courses_bp = Blueprint('courses', __name__)
 
@@ -35,6 +35,15 @@ def course(course_id):
         user_id=current_user.id, course_id=course_id
     ).first() is not None
 
+    # Related courses: same category, excluding this one
+    related = []
+    if course.category:
+        related = Course.query.filter(
+            Course.category == course.category,
+            Course.id != course_id,
+            Course.is_published == True
+        ).limit(3).all()
+
     return render_template('courses/course.html',
                            course=course,
                            completed_ids=completed_ids,
@@ -43,24 +52,48 @@ def course(course_id):
                            percent=percent,
                            certificate=certificate,
                            user_review=user_review,
-                           is_favorite=is_favorite)
+                           is_favorite=is_favorite,
+                           related=related)
 
 
 @courses_bp.route('/lesson/<int:lesson_id>')
-@login_required
 def lesson(lesson_id):
     lesson = Lesson.query.get_or_404(lesson_id)
     course = lesson.course
 
-    if not course.is_published and not current_user.is_admin:
-        flash('Этот курс недоступен', 'warning')
-        return redirect(url_for('main.catalog'))
+    # Check course availability
+    if not course.is_published:
+        if current_user.is_authenticated and current_user.is_admin:
+            pass  # admin can preview unpublished
+        elif current_user.is_authenticated:
+            flash('Этот курс недоступен', 'warning')
+            return redirect(url_for('main.catalog'))
+        else:
+            return redirect(url_for('auth.login'))
 
-    completed_ids = {p.lesson_id for p in current_user.progress}
     lessons = list(course.lessons)
     idx = next((i for i, l in enumerate(lessons) if l.id == lesson_id), 0)
     prev_lesson = lessons[idx - 1] if idx > 0 else None
     next_lesson = lessons[idx + 1] if idx < len(lessons) - 1 else None
+    is_first = (idx == 0)
+
+    # Non-authenticated: preview first lesson only
+    if not current_user.is_authenticated:
+        if not is_first:
+            flash('Войдите или зарегистрируйтесь для доступа к урокам', 'info')
+            return redirect(url_for('auth.login'))
+        return render_template('courses/lesson.html',
+                               lesson=lesson, course=course,
+                               completed_ids=set(),
+                               prev_lesson=None,
+                               next_lesson=next_lesson,
+                               quiz_result=None,
+                               preview=True,
+                               user_note=None,
+                               is_first_lesson=True)
+
+    # Authenticated user
+    completed_ids = {p.lesson_id for p in current_user.progress}
 
     quiz_result = None
     if lesson.lesson_type == 'quiz':
@@ -68,13 +101,27 @@ def lesson(lesson_id):
             user_id=current_user.id, lesson_id=lesson_id
         ).first()
 
+    # Track view for history
+    view = LessonView.query.filter_by(user_id=current_user.id, lesson_id=lesson_id).first()
+    if view:
+        view.viewed_at = datetime.utcnow()
+    else:
+        db.session.add(LessonView(user_id=current_user.id, lesson_id=lesson_id))
+    db.session.commit()
+
+    # Personal note
+    user_note = LessonNote.query.filter_by(user_id=current_user.id, lesson_id=lesson_id).first()
+
     return render_template('courses/lesson.html',
                            lesson=lesson,
                            course=course,
                            completed_ids=completed_ids,
                            prev_lesson=prev_lesson,
                            next_lesson=next_lesson,
-                           quiz_result=quiz_result)
+                           quiz_result=quiz_result,
+                           preview=False,
+                           user_note=user_note,
+                           is_first_lesson=is_first)
 
 
 @courses_bp.route('/lesson/<int:lesson_id>/complete', methods=['POST'])
@@ -87,9 +134,10 @@ def complete_lesson(lesson_id):
     if not existing:
         db.session.add(UserProgress(user_id=current_user.id, lesson_id=lesson_id))
         db.session.flush()
+        update_streak(current_user)
         award_badges(current_user)
         db.session.commit()
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'streak': current_user.streak_days or 0})
 
 
 @courses_bp.route('/lesson/<int:lesson_id>/submit-quiz', methods=['POST'])
@@ -129,6 +177,7 @@ def submit_quiz(lesson_id):
         db.session.add(UserProgress(user_id=current_user.id, lesson_id=lesson_id))
 
     db.session.flush()
+    update_streak(current_user)
     award_badges(current_user)
     db.session.commit()
 
@@ -138,6 +187,23 @@ def submit_quiz(lesson_id):
         flash(f'Тест завершён. Ваш результат: {score}/{max_score}', 'info')
 
     return redirect(url_for('courses.lesson', lesson_id=lesson_id))
+
+
+# ── Notes ──────────────────────────────────────────────────────────────────────
+
+@courses_bp.route('/lesson/<int:lesson_id>/note', methods=['POST'])
+@login_required
+def save_note(lesson_id):
+    Lesson.query.get_or_404(lesson_id)
+    text = request.form.get('note_text', '').strip()
+    note = LessonNote.query.filter_by(user_id=current_user.id, lesson_id=lesson_id).first()
+    if note:
+        note.text = text
+        note.updated_at = datetime.utcnow()
+    else:
+        db.session.add(LessonNote(user_id=current_user.id, lesson_id=lesson_id, text=text))
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 # ── Certificate ────────────────────────────────────────────────────────────────

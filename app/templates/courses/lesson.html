@@ -13,6 +13,17 @@
         </ol>
     </nav>
 
+    {% if preview %}
+    <div class="alert alert-info d-flex align-items-center gap-3 mb-3" role="alert">
+        <i class="fas fa-eye fa-lg flex-shrink-0"></i>
+        <div>
+            <strong>Предпросмотр урока.</strong> Это первый бесплатный урок курса.
+            <a href="{{ url_for('auth.register') }}" class="alert-link ms-1">Зарегистрируйтесь</a>
+            для полного доступа.
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-4">
         <!-- Main content -->
         <div class="col-lg-8">
@@ -35,7 +46,11 @@
                     </div>
                     <hr>
                     <div class="text-center">
-                        {% if lesson.id in completed_ids %}
+                        {% if preview %}
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-user-plus me-2"></i>Зарегистрироваться для продолжения
+                            </a>
+                        {% elif lesson.id in completed_ids %}
                             <button class="btn btn-secondary btn-lg px-5" disabled aria-label="{{ t('lesson.done_btn') }}">
                                 <i class="fas fa-check me-2" aria-hidden="true"></i>{{ t('lesson.done_btn') }}
                             </button>
@@ -73,7 +88,11 @@
                     {% endif %}
                     <hr>
                     <div class="text-center">
-                        {% if lesson.id in completed_ids %}
+                        {% if preview %}
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-user-plus me-2"></i>Зарегистрироваться для продолжения
+                            </a>
+                        {% elif lesson.id in completed_ids %}
                             <button class="btn btn-secondary btn-lg px-5" disabled>
                                 <i class="fas fa-check me-2" aria-hidden="true"></i>{{ t('lesson.done_btn') }}
                             </button>
@@ -93,7 +112,7 @@
                     <div class="lesson-content mb-4">{{ lesson.content | safe }}</div>
                     {% endif %}
 
-                    {% if quiz_result %}
+                    {% if not preview and quiz_result %}
                     <div class="alert {% if quiz_result.score == quiz_result.max_score %}alert-success{% else %}alert-info{% endif %} mb-4"
                          role="status">
                         <h5 class="mb-1">
@@ -119,6 +138,13 @@
                     {% endif %}
 
                     {% if lesson.questions %}
+                    {% if preview %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-lock me-2"></i>
+                        Войдите или зарегистрируйтесь для прохождения тестов.
+                        <a href="{{ url_for('auth.register') }}" class="alert-link">Регистрация</a>
+                    </div>
+                    {% else %}
                     <form method="POST" action="{{ url_for('courses.submit_quiz', lesson_id=lesson.id) }}"
                           aria-label="{{ lesson.title }}">
                         {% for question in lesson.questions %}
@@ -149,13 +175,62 @@
                             </button>
                         </div>
                     </form>
+                    {% endif %}
                     {% else %}
                     <p class="text-muted text-center">{{ t('lesson.no_questions') }}</p>
                     {% endif %}
                 {% endif %}
             </div>
 
+            <!-- Attachments -->
+            {% if lesson.attachments %}
+            <div class="panel mb-4">
+                <h6 class="fw-bold mb-3">
+                    <i class="fas fa-paperclip text-secondary me-2"></i>
+                    Материалы к уроку
+                </h6>
+                <div class="d-flex flex-column gap-2">
+                    {% for att in lesson.attachments %}
+                    <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer"
+                       class="d-flex align-items-center gap-3 p-2 rounded-2 text-decoration-none"
+                       style="background:var(--bg);border:1px solid var(--border);">
+                        {% if att.file_type == 'pdf' %}
+                            <i class="fas fa-file-pdf text-danger fa-lg flex-shrink-0"></i>
+                        {% elif att.file_type == 'zip' %}
+                            <i class="fas fa-file-archive text-warning fa-lg flex-shrink-0"></i>
+                        {% elif att.file_type == 'doc' %}
+                            <i class="fas fa-file-word text-primary fa-lg flex-shrink-0"></i>
+                        {% else %}
+                            <i class="fas fa-external-link-alt text-secondary fa-lg flex-shrink-0"></i>
+                        {% endif %}
+                        <span class="small fw-semibold" style="color:var(--text);">{{ att.name }}</span>
+                        <i class="fas fa-download text-muted ms-auto small"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Personal Notes -->
+            {% if not preview %}
+            <div class="panel mb-4" id="notes">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-sticky-note text-warning me-2"></i>Мои заметки
+                    </h6>
+                    <span class="text-muted small" id="noteSaveStatus"></span>
+                </div>
+                <textarea id="noteTextarea" class="form-control form-control-sm mb-2" rows="4"
+                          placeholder="Записывайте важные мысли, термины, вопросы..."
+                          style="resize:vertical;">{{ user_note.text if user_note else '' }}</textarea>
+                <button onclick="saveNote()" class="btn btn-sm btn-outline-warning px-3">
+                    <i class="fas fa-save me-1"></i>Сохранить заметку
+                </button>
+            </div>
+            {% endif %}
+
             <!-- Comments -->
+            {% if not preview %}
             <div class="panel mb-4" id="comments">
                 <h6 class="fw-bold mb-3">
                     <i class="fas fa-comments text-primary me-2"></i>
@@ -168,13 +243,17 @@
                     {% for comment in lesson.comments %}
                     <div class="d-flex gap-3">
                         <div class="user-avatar flex-shrink-0" style="width:36px;height:36px;font-size:.85rem;">
-                            {{ comment.user.username[0] }}
+                            {% if comment.user.avatar_url %}
+                                <img src="{{ comment.user.avatar_url }}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                            {% else %}
+                                {{ comment.user.username[0] }}
+                            {% endif %}
                         </div>
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <span class="fw-semibold small">{{ comment.user.username }}</span>
                                 <span class="text-muted" style="font-size:.72rem;">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                                {% if comment.user_id == current_user.id or current_user.is_admin %}
+                                {% if current_user.is_authenticated and (comment.user_id == current_user.id or current_user.is_admin) %}
                                 <form method="POST" action="{{ url_for('courses.delete_comment', comment_id=comment.id) }}" class="d-inline ms-auto">
                                     <button type="submit" class="btn btn-sm btn-link text-danger py-0 px-0" style="font-size:.72rem;"
                                             onclick="return confirm('Удалить комментарий?')" aria-label="Удалить">
@@ -192,10 +271,15 @@
                 <p class="text-muted small mb-3">Пока нет комментариев. Начните обсуждение!</p>
                 {% endif %}
 
+                {% if current_user.is_authenticated %}
                 <form method="POST" action="{{ url_for('courses.add_comment', lesson_id=lesson.id) }}">
                     <div class="d-flex gap-2 align-items-start">
                         <div class="user-avatar flex-shrink-0" style="width:36px;height:36px;font-size:.85rem;">
-                            {{ current_user.username[0] }}
+                            {% if current_user.avatar_url %}
+                                <img src="{{ current_user.avatar_url }}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                            {% else %}
+                                {{ current_user.username[0] }}
+                            {% endif %}
                         </div>
                         <div class="flex-grow-1">
                             <textarea name="text" class="form-control form-control-sm mb-2" rows="2"
@@ -206,7 +290,9 @@
                         </div>
                     </div>
                 </form>
+                {% endif %}
             </div>
+            {% endif %}
 
             <!-- Navigation -->
             <div class="d-flex justify-content-between gap-2 flex-wrap">
@@ -228,7 +314,7 @@
 
         <!-- Sidebar: lesson list -->
         <div class="col-lg-4">
-            <div class="panel">
+            <div class="panel mb-3">
                 <h6 class="fw-bold mb-3 px-1">
                     <i class="fas fa-list-ul text-primary me-2" aria-hidden="true"></i>{{ course.title }}
                 </h6>
@@ -250,6 +336,9 @@
                                 {% endif %}
                             </div>
                             <span class="small">{{ l.title }}</span>
+                            {% if loop.first and not current_user.is_authenticated %}
+                            <span class="badge bg-success ms-auto" style="font-size:.6rem;">Бесплатно</span>
+                            {% endif %}
                         </div>
                     </a>
                     {% endfor %}
@@ -260,10 +349,22 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Streak widget (authenticated only) -->
+            {% if not preview and current_user.is_authenticated and current_user.streak_days %}
+            <div class="panel mb-3 text-center">
+                <div style="font-size:2rem;">🔥</div>
+                <div class="fw-bold fs-4 text-warning">{{ current_user.streak_days }}</div>
+                <div class="text-muted small">
+                    {{ 'день' if current_user.streak_days == 1 else ('дня' if current_user.streak_days < 5 else 'дней') }} подряд
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+{% if not preview %}
 <!-- AI Chat Widget -->
 <div class="ai-chat-widget">
     <button class="ai-chat-fab" id="aiChatFab" onclick="toggleAiChat()"
@@ -283,7 +384,7 @@
                 </div>
             </div>
             <button class="btn-close btn-close-white btn-sm" onclick="toggleAiChat()"
-                    aria-label="{{ 'Close' if lang == 'en' else ('Жабу' if lang == 'kz' else 'Закрыть') }}"></button>
+                    aria-label="Закрыть"></button>
         </div>
         <div class="ai-chat-messages" id="aiChatMessages">
             <div class="ai-message">
@@ -295,13 +396,13 @@
                    placeholder="{{ t('ai.chat_placeholder') }}"
                    onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendAiMessage(); }"
                    aria-label="{{ t('ai.chat_placeholder') }}">
-            <button onclick="sendAiMessage()" id="aiSendBtn"
-                    aria-label="{{ 'Send' if lang == 'en' else ('Жіберу' if lang == 'kz' else 'Отправить') }}">
+            <button onclick="sendAiMessage()" id="aiSendBtn" aria-label="Отправить">
                 <i class="fas fa-paper-plane" aria-hidden="true"></i>
             </button>
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -319,28 +420,64 @@ function selectAnswer(el) {
     el.classList.add('selected');
 }
 
+/* ── Notes ── */
+let _noteTimer = null;
+function saveNote() {
+    const text = document.getElementById('noteTextarea').value;
+    const status = document.getElementById('noteSaveStatus');
+    if (status) status.textContent = 'Сохранение...';
+    fetch('/lesson/' + _lessonId + '/note', {
+        method: 'POST',
+        body: new URLSearchParams({note_text: text})
+    }).then(r => r.json()).then(() => {
+        if (status) status.textContent = 'Сохранено ✓';
+        setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+    });
+}
+
+/* Auto-save notes on input (debounced 2s) */
+const _noteEl = document.getElementById('noteTextarea');
+if (_noteEl) {
+    _noteEl.addEventListener('input', function() {
+        clearTimeout(_noteTimer);
+        _noteTimer = setTimeout(saveNote, 2000);
+    });
+}
+
+/* ── Mark as Done (complete_lesson) ── */
+const _completeBtn = document.getElementById('completeBtn');
+if (_completeBtn) {
+    _completeBtn.addEventListener('click', function() {
+        _completeBtn.disabled = true;
+        fetch('/lesson/' + _lessonId + '/complete', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                _completeBtn.textContent = _completeBtn.dataset.doneText || '✓ Готово';
+                _completeBtn.classList.replace('btn-success', 'btn-secondary');
+                const next = _completeBtn.dataset.nextUrl;
+                if (next) setTimeout(() => { window.location = next; }, 600);
+            });
+    });
+}
+
 /* ── AI Chat ── */
 function toggleAiChat() {
     const panel = document.getElementById('aiChatPanel');
     const fab   = document.getElementById('aiChatFab');
+    if (!panel) return;
     const open  = panel.classList.toggle('open');
     fab.setAttribute('aria-expanded', open);
-    if (open) {
-        document.getElementById('aiChatInput').focus();
-    }
+    if (open) document.getElementById('aiChatInput').focus();
 }
 
 async function sendAiMessage() {
     const input = document.getElementById('aiChatInput');
     const msg   = input.value.trim();
     if (!msg) return;
-
     input.value = '';
     document.getElementById('aiSendBtn').disabled = true;
-
     appendMsg('user', msg);
     const typingEl = showTyping();
-
     try {
         const res  = await fetch('/api/chat', {
             method: 'POST',
@@ -381,10 +518,10 @@ function showTyping() {
     return row;
 }
 
-/* Close chat on outside click */
 document.addEventListener('click', function(e) {
     const panel = document.getElementById('aiChatPanel');
     const fab   = document.getElementById('aiChatFab');
+    if (!panel) return;
     if (panel.classList.contains('open') && !panel.contains(e.target) && !fab.contains(e.target)) {
         panel.classList.remove('open');
         fab.setAttribute('aria-expanded', 'false');

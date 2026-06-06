@@ -195,12 +195,19 @@
             <div class="panel mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">{{ t('course.progress') }}</h6>
-                    <button class="btn btn-sm btn-outline-secondary fav-btn py-0 px-2"
-                            data-course-id="{{ course.id }}"
-                            title="{% if is_favorite %}Удалить из избранного{% else %}В избранное{% endif %}"
-                            aria-label="Избранное">
-                        <i class="fas fa-heart {% if is_favorite %}text-danger{% else %}text-muted{% endif %}"></i>
-                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if course.enrolled_count > 0 %}
+                        <span class="text-muted small">
+                            <i class="fas fa-users me-1"></i>{{ course.enrolled_count }}
+                        </span>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-secondary fav-btn py-0 px-2"
+                                data-course-id="{{ course.id }}"
+                                title="{% if is_favorite %}Удалить из избранного{% else %}В избранное{% endif %}"
+                                aria-label="Избранное">
+                            <i class="fas fa-heart {% if is_favorite %}text-danger{% else %}text-muted{% endif %}"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
@@ -273,6 +280,40 @@
         </div>
     </div>
 </div>
+    <!-- Related Courses -->
+    {% if related %}
+    <div class="container pb-4">
+        <h5 class="fw-bold mb-3">
+            <i class="fas fa-layer-group text-primary me-2"></i>Похожие курсы
+        </h5>
+        <div class="row g-3">
+            {% for rc in related %}
+            <div class="col-md-4">
+                <a href="{{ url_for('courses.course', course_id=rc.id) }}" class="text-decoration-none">
+                    <div class="d-flex align-items-center gap-3 p-3 rounded-3 h-100"
+                         style="border:1px solid var(--border);background:var(--card-bg);">
+                        <div class="course-color-{{ rc.id % 6 }} rounded-2 flex-shrink-0"
+                             style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;{% if rc.cover_image %}background-image:url('{{ rc.cover_image }}');background-size:cover;{% endif %}">
+                            {% if not rc.cover_image %}
+                            <i class="fas fa-graduation-cap text-white"></i>
+                            {% endif %}
+                        </div>
+                        <div class="min-width-0">
+                            <div class="fw-bold small text-truncate" style="color:var(--text);">{{ rc.title }}</div>
+                            <div class="text-muted" style="font-size:.72rem;">
+                                {{ rc.lessons | length }} уроков
+                                {% if rc.avg_rating > 0 %}
+                                · ⭐ {{ rc.avg_rating }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}

@@ -30,6 +30,11 @@
                         <i class="fas fa-book-open me-1"></i>{{ t('nav.catalog') }}
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.leaderboard') }}">
+                        <i class="fas fa-trophy me-1"></i>Лидерборд
+                    </a>
+                </li>
             </ul>
             <ul class="navbar-nav align-items-center gap-1">
                 <li class="nav-item d-flex align-items-center gap-1 me-1">
@@ -88,6 +93,17 @@
                             <li>
                                 <a class="dropdown-item rounded-2" href="{{ url_for('admin.stats') }}">
                                     <i class="fas fa-chart-bar me-2 text-success"></i>{{ t('nav.stats') }}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item rounded-2" href="{{ url_for('admin.promo_list') }}">
+                                    <i class="fas fa-ticket-alt me-2 text-purple"></i>Промокоды
+                                </a>
+                            </li>
+                            {% else %}
+                            <li>
+                                <a class="dropdown-item rounded-2" href="{{ url_for('main.apply_promo') }}">
+                                    <i class="fas fa-ticket-alt me-2" style="color:#8b5cf6;"></i>Промокод
                                 </a>
                             </li>
                             {% endif %}
