@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (Course, Lesson, FavoriteCourse, Notification, BADGE_DEFS,
                          User, UserProgress, LessonView, UserBadge, PromoCode, UserPromoCode)
+from app.uploads import save_upload
 
 main_bp = Blueprint('main', __name__)
 
@@ -137,8 +138,11 @@ def profile():
 @main_bp.route('/profile/avatar', methods=['POST'])
 @login_required
 def update_avatar():
-    url = request.form.get('avatar_url', '').strip()
-    current_user.avatar_url = url or None
+    uploaded = save_upload(request.files.get('avatar_file'), 'avatars')
+    if uploaded:
+        current_user.avatar_url = uploaded
+    elif 'remove_avatar' in request.form:
+        current_user.avatar_url = None
     db.session.commit()
     flash('Аватар обновлён!', 'success')
     return redirect(url_for('main.profile'))

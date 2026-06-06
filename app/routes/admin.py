@@ -5,6 +5,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (Course, Lesson, Question, Answer, User, UserProgress,
                          Notification, LessonAttachment, PromoCode)
+from app.uploads import save_upload
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -101,11 +102,13 @@ def stats():
 def new_course():
     if request.method == 'POST':
         is_published = bool(request.form.get('is_published'))
+        uploaded = save_upload(request.files.get('cover_image_file'), 'courses')
+        cover_image = uploaded or request.form.get('cover_image', '').strip() or None
         course = Course(
             title=request.form.get('title', '').strip(),
             description=request.form.get('description', '').strip(),
             short_description=request.form.get('short_description', '').strip(),
-            cover_image=request.form.get('cover_image', '').strip() or None,
+            cover_image=cover_image,
             category=request.form.get('category', '').strip() or None,
             difficulty=request.form.get('difficulty', '').strip() or None,
             is_published=is_published
@@ -130,7 +133,8 @@ def edit_course(course_id):
         course.title = request.form.get('title', '').strip()
         course.description = request.form.get('description', '').strip()
         course.short_description = request.form.get('short_description', '').strip()
-        course.cover_image = request.form.get('cover_image', '').strip() or None
+        uploaded = save_upload(request.files.get('cover_image_file'), 'courses')
+        course.cover_image = uploaded or request.form.get('cover_image', '').strip() or None
         course.category = request.form.get('category', '').strip() or None
         course.difficulty = request.form.get('difficulty', '').strip() or None
         course.is_published = bool(request.form.get('is_published'))

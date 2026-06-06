@@ -12,6 +12,16 @@
 [data-theme="dark"] .ql-toolbar .ql-picker { color: #cbd5e1; }
 [data-theme="dark"] .ql-toolbar .ql-picker-options { background: #1e293b; }
 </style>
+<script>
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -33,7 +43,7 @@
                 <h3 class="fw-bold mb-4">
                     {% if course %}Редактировать курс{% else %}Создать новый курс{% endif %}
                 </h3>
-                <form method="POST" novalidate>
+                <form method="POST" enctype="multipart/form-data" novalidate>
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="title">
                             Название курса <span class="text-danger">*</span>
@@ -57,23 +67,27 @@
                                value="{{ course.description if course else '' }}">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="cover_image">
+                        <label class="form-label fw-semibold">
                             <i class="fas fa-image text-primary me-1" aria-hidden="true"></i>
-                            Обложка курса (URL изображения)
+                            Обложка курса
                         </label>
-                        <input type="text" name="cover_image" id="cover_image" class="form-control"
-                               value="{{ course.cover_image if course and course.cover_image else '' }}"
-                               placeholder="https://images.unsplash.com/...">
-                        <div class="form-text">
-                            Необязательно. Вставьте ссылку на изображение. Если не указано — отображается цветной градиент.
-                        </div>
                         {% if course and course.cover_image %}
-                        <div class="mt-2">
-                            <img src="{{ course.cover_image }}" class="img-fluid rounded"
-                                 style="max-height:120px;" onerror="this.style.display='none'"
-                                 alt="Обложка курса">
+                        <div class="mb-2 position-relative d-inline-block">
+                            <img src="{{ course.cover_image }}" id="coverPreview"
+                                 class="img-fluid rounded" style="max-height:120px;display:block;"
+                                 onerror="this.style.display='none'" alt="Обложка курса">
+                        </div>
+                        {% else %}
+                        <div class="mb-2">
+                            <img id="coverPreview" src="" alt="" style="max-height:120px;display:none;" class="img-fluid rounded">
                         </div>
                         {% endif %}
+                        <input type="file" name="cover_image_file" id="cover_image_file"
+                               class="form-control" accept="image/*"
+                               onchange="previewImage(this, 'coverPreview')">
+                        <input type="hidden" name="cover_image"
+                               value="{{ course.cover_image if course and course.cover_image else '' }}">
+                        <div class="form-text">JPG, PNG, WEBP до 5 МБ. Если не выбрать — останется текущая обложка или цветной градиент.</div>
                     </div>
                     <div class="row g-3 mb-3">
                         <div class="col-sm-6">

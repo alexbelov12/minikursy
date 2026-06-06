@@ -51,15 +51,25 @@
                 </a>
             </div>
         </div>
-        <!-- Avatar URL form (collapsed by default) -->
+        <!-- Avatar upload form (collapsed by default) -->
         <div class="collapse mt-3" id="avatarForm">
-            <form method="POST" action="{{ url_for('main.update_avatar') }}" class="d-flex gap-2">
-                <input type="url" name="avatar_url" class="form-control form-control-sm"
-                       placeholder="https://... (URL изображения)"
-                       value="{{ current_user.avatar_url or '' }}">
-                <button type="submit" class="btn btn-sm btn-primary px-3">Сохранить</button>
+            <form method="POST" action="{{ url_for('main.update_avatar') }}"
+                  enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
                 {% if current_user.avatar_url %}
-                <button type="submit" name="avatar_url" value="" class="btn btn-sm btn-outline-danger">
+                <img id="avatarPreview" src="{{ current_user.avatar_url }}"
+                     style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+                     onerror="this.style.display='none'" alt="">
+                {% else %}
+                <img id="avatarPreview" src="" alt=""
+                     style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none;">
+                {% endif %}
+                <input type="file" name="avatar_file" class="form-control form-control-sm"
+                       accept="image/*" style="max-width:260px;"
+                       onchange="previewAvatar(this)">
+                <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
+                {% if current_user.avatar_url %}
+                <button type="submit" name="remove_avatar" value="1"
+                        class="btn btn-sm btn-outline-danger" title="Удалить аватар">
                     <i class="fas fa-times"></i>
                 </button>
                 {% endif %}
@@ -277,4 +287,17 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewAvatar(input) {
+    const preview = document.getElementById('avatarPreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 {% endblock %}
