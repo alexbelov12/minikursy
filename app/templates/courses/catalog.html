@@ -188,15 +188,11 @@
                                     aria-label="В избранное">
                                 <i class="fas fa-heart {% if course.id in favorite_ids %}text-danger{% else %}text-muted{% endif %}"></i>
                             </button>
+                            {% endif %}
                             <a href="{{ url_for('courses.course', course_id=course.id) }}"
                                class="btn btn-primary btn-sm px-3">
                                 {{ t('catalog.open') }} <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i>
                             </a>
-                            {% else %}
-                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
-                                {{ t('nav.login') }}
-                            </a>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
