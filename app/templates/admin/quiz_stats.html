@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Статистика теста — {{ lesson.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:760px;">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Панель</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}">{{ lesson.title }}</a>
+            </li>
+            <li class="breadcrumb-item active">Статистика теста</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+        <div>
+            <h1 class="section-title mb-1">
+                <i class="fas fa-chart-bar me-2"></i>Статистика теста
+            </h1>
+            <p class="text-muted mb-0">{{ lesson.title }} — {{ total_attempts }} попыток</p>
+        </div>
+    </div>
+
+    {% if stats %}
+    <div class="d-flex flex-column gap-3">
+        {% for s in stats %}
+        <div class="panel">
+            <div class="d-flex justify-content-between align-items-start mb-2 gap-3 flex-wrap">
+                <p class="fw-semibold mb-0">{{ loop.index }}. {{ s.question.text }}</p>
+                <span class="badge flex-shrink-0 {% if s.pct >= 70 %}bg-success{% elif s.pct >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                    {{ s.pct }}% верно
+                </span>
+            </div>
+            <div class="progress mb-2" style="height:8px;">
+                <div class="progress-bar {% if s.pct >= 70 %}bg-success{% elif s.pct >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+                     style="width:{{ s.pct }}%;"></div>
+            </div>
+            <div class="text-muted small">{{ s.correct }} из {{ s.total }} ответили верно</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-chart-bar text-muted d-block" style="font-size:3rem;opacity:.2;"></i>
+        <h5 class="fw-bold mt-3">Данных пока нет</h5>
+        <p class="text-muted">Студенты ещё не проходили этот тест</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

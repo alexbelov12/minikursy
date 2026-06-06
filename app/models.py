@@ -21,6 +21,8 @@ BADGE_DEFS = {
                       'name': 'Месяц огня',      'desc': 'Учился 30 дней подряд'},
     'promo_member':  {'icon': 'fas fa-ticket-alt',     'color': '#8b5cf6', 'bg': '#ede9fe',
                       'name': 'Промо-участник',  'desc': 'Активировал промокод'},
+    'recruiter':     {'icon': 'fas fa-user-plus',      'color': '#10b981', 'bg': '#d1fae5',
+                      'name': 'Рекрутёр',        'desc': 'Пригласил первого студента'},
 }
 
 
@@ -39,6 +41,8 @@ class User(UserMixin, db.Model):
     avatar_url = db.Column(db.String(500))
     streak_days = db.Column(db.Integer, default=0)
     last_activity_date = db.Column(db.Date)
+    referral_code = db.Column(db.String(20), unique=True)
+    referred_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     progress = db.relationship('UserProgress', backref='user', lazy=True, cascade='all, delete-orphan')
     quiz_results = db.relationship('UserQuizResult', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -52,12 +56,18 @@ class User(UserMixin, db.Model):
     notes = db.relationship('LessonNote', backref='user', lazy=True, cascade='all, delete-orphan')
     lesson_views = db.relationship('LessonView', backref='user', lazy=True, cascade='all, delete-orphan')
     promo_codes = db.relationship('UserPromoCode', backref='user', lazy=True, cascade='all, delete-orphan')
+    submissions = db.relationship('AssignmentSubmission', backref='user', lazy=True, cascade='all, delete-orphan')
+    comment_likes = db.relationship('CommentLike', backref='user', lazy=True, cascade='all, delete-orphan')
+    quiz_answers = db.relationship('UserQuizAnswer', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def generate_referral_code(self):
+        self.referral_code = secrets.token_urlsafe(8)[:12]
 
 
 class Course(db.Model):
@@ -70,6 +80,7 @@ class Course(db.Model):
     difficulty = db.Column(db.String(20))
     is_published = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deadline = db.Column(db.Date)
 
     lessons = db.relationship('Lesson', backref='course', lazy=True,
                               order_by='Lesson.order', cascade='all, delete-orphan')
@@ -117,6 +128,7 @@ class Lesson(db.Model):
     attachments = db.relationship('LessonAttachment', backref='lesson', lazy=True,
                                   order_by='LessonAttachment.order', cascade='all, delete-orphan')
     views = db.relationship('LessonView', backref='lesson', lazy=True, cascade='all, delete-orphan')
+    assignments = db.relationship('Assignment', backref='lesson', lazy=True, cascade='all, delete-orphan')
 
 
 class Question(db.Model):
@@ -126,6 +138,7 @@ class Question(db.Model):
     order = db.Column(db.Integer, default=0)
 
     answers = db.relationship('Answer', backref='question', lazy=True, cascade='all, delete-orphan')
+    quiz_answers = db.relationship('UserQuizAnswer', backref='question', lazy=True, cascade='all, delete-orphan')
 
 
 class Answer(db.Model):
@@ -152,8 +165,6 @@ class UserQuizResult(db.Model):
     max_score = db.Column(db.Integer, default=0)
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-
-# ── New models ─────────────────────────────────────────────────────────────────
 
 class Certificate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -183,6 +194,12 @@ class LessonComment(db.Model):
     lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    likes = db.relationship('CommentLike', backref='comment', lazy=True, cascade='all, delete-orphan')
+
+    @property
+    def likes_count(self):
+        return len(self.likes)
 
 
 class FavoriteCourse(db.Model):
@@ -222,7 +239,6 @@ class PasswordResetToken(db.Model):
 
 
 class LessonNote(db.Model):
-    """Personal notes a student writes per lesson."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
@@ -233,7 +249,6 @@ class LessonNote(db.Model):
 
 
 class LessonView(db.Model):
-    """Tracks last-viewed timestamp per user per lesson (for history)."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
@@ -243,12 +258,11 @@ class LessonView(db.Model):
 
 
 class LessonAttachment(db.Model):
-    """Downloadable files / links attached to a lesson by admin."""
     id = db.Column(db.Integer, primary_key=True)
     lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)
     url = db.Column(db.String(500), nullable=False)
-    file_type = db.Column(db.String(20), default='link')  # link | pdf | zip | doc
+    file_type = db.Column(db.String(20), default='link')
     order = db.Column(db.Integer, default=0)
 
 
@@ -256,7 +270,7 @@ class PromoCode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(300))
-    max_uses = db.Column(db.Integer, default=0)   # 0 = unlimited
+    max_uses = db.Column(db.Integer, default=0)
     uses_count = db.Column(db.Integer, default=0)
     expires_at = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
@@ -274,10 +288,52 @@ class UserPromoCode(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'promo_code_id'),)
 
 
+class Assignment(db.Model):
+    """Practical task attached to a lesson by admin."""
+    id = db.Column(db.Integer, primary_key=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    submissions = db.relationship('AssignmentSubmission', backref='assignment', lazy=True, cascade='all, delete-orphan')
+
+
+class AssignmentSubmission(db.Model):
+    """Student answer to an assignment."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.id'), nullable=False)
+    answer_text = db.Column(db.Text, nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'assignment_id'),)
+
+
+class CommentLike(db.Model):
+    """Like on a lesson comment."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    comment_id = db.Column(db.Integer, db.ForeignKey('lesson_comment.id'), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'comment_id'),)
+
+
+class UserQuizAnswer(db.Model):
+    """Per-question answer tracking for quiz statistics."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
+    answer_id = db.Column(db.Integer, db.ForeignKey('answer.id'), nullable=True)
+    is_correct = db.Column(db.Boolean, default=False)
+    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'question_id'),)
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def update_streak(user):
-    """Update user's daily learning streak. Call before award_badges."""
     today = date_type.today()
     if user.last_activity_date == today:
         return
@@ -289,7 +345,6 @@ def update_streak(user):
 
 
 def award_badges(user):
-    """Check and award any earned badges. Call after progress or quiz updates."""
     earned_types = {b.badge_type for b in user.badges}
 
     def _try_award(badge_type):
@@ -335,3 +390,7 @@ def award_badges(user):
         _try_award('streak_7')
     if streak >= 30:
         _try_award('streak_30')
+
+    referral_count = User.query.filter_by(referred_by_id=user.id).count()
+    if referral_count >= 1:
+        _try_award('recruiter')

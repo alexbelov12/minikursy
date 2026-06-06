@@ -38,6 +38,23 @@ with app.app_context():
             if 'last_activity_date' not in user_cols:
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN last_activity_date DATE'))
                 conn.commit()
+            if 'referral_code' not in user_cols:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN referral_code VARCHAR(20)'))
+                conn.commit()
+            if 'referred_by_id' not in user_cols:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN referred_by_id INTEGER REFERENCES "user"(id)'))
+                conn.commit()
+    except Exception:
+        pass
+
+    try:
+        from sqlalchemy import text, inspect
+        insp = inspect(db.engine)
+        course_cols2 = [c['name'] for c in insp.get_columns('course')]
+        with db.engine.connect() as conn:
+            if 'deadline' not in course_cols2:
+                conn.execute(text('ALTER TABLE course ADD COLUMN deadline DATE'))
+                conn.commit()
     except Exception:
         pass
 

@@ -199,6 +199,14 @@
 
         <!-- Right: progress sidebar -->
         <div class="col-lg-4">
+            {% if course.deadline %}
+            <div class="panel mb-3 text-center" id="deadlinePanel">
+                <i class="fas fa-clock text-warning mb-2 d-block" style="font-size:1.5rem;"></i>
+                <div class="fw-bold mb-1">Дедлайн курса</div>
+                <div class="text-muted small mb-2">{{ course.deadline.strftime('%d.%m.%Y') }}</div>
+                <div id="countdown" class="fw-bold" style="font-size:1.1rem;color:var(--primary);"></div>
+            </div>
+            {% endif %}
             <div class="panel mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">{{ t('course.progress') }}</h6>
@@ -377,5 +385,25 @@ if (favBtn) {
             });
     });
 }
+
+// Deadline countdown
+{% if course.deadline %}
+(function() {
+    const deadline = new Date('{{ course.deadline.isoformat() }}T23:59:59');
+    function update() {
+        const diff = deadline - new Date();
+        const el = document.getElementById('countdown');
+        if (!el) return;
+        if (diff <= 0) { el.textContent = 'Дедлайн истёк'; el.style.color = '#ef4444'; return; }
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        el.textContent = d > 0 ? `${d} дн. ${h} ч. ${m} мин.` : `${h} ч. ${m} мин.`;
+        if (d < 3) el.style.color = '#ef4444';
+    }
+    update();
+    setInterval(update, 60000);
+})();
+{% endif %}
 </script>
 {% endblock %}

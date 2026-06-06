@@ -62,14 +62,29 @@ def register():
 
         user = User(username=username, email=email)
         user.set_password(password)
+        user.generate_referral_code()
+
+        ref_code = request.args.get('ref') or request.form.get('ref', '').strip()
+        referrer = None
+        if ref_code:
+            referrer = User.query.filter_by(referral_code=ref_code).first()
+            if referrer and referrer.email != email:
+                user.referred_by_id = referrer.id
+
         db.session.add(user)
         db.session.commit()
+
+        if referrer and user.referred_by_id:
+            from app.models import award_badges
+            award_badges(referrer)
+            db.session.commit()
 
         login_user(user)
         flash('Регистрация прошла успешно! Добро пожаловать!', 'success')
         return redirect(url_for('main.index'))
 
-    return render_template('auth/register.html')
+    ref = request.args.get('ref', '')
+    return render_template('auth/register.html', ref=ref)
 
 
 @auth_bp.route('/logout')

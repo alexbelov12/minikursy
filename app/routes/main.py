@@ -124,6 +124,13 @@ def profile():
     # Applied promo codes
     used_promos = UserPromoCode.query.filter_by(user_id=current_user.id).all()
 
+    # Referral
+    from flask import request as req
+    from app.models import User as UserModel
+    referral_count = UserModel.query.filter_by(referred_by_id=current_user.id).count()
+    referral_link = req.host_url.rstrip('/') + url_for('auth.register') + \
+        '?ref=' + (current_user.referral_code or '')
+
     return render_template('profile.html',
                            courses_progress=courses_progress,
                            completed_lessons=len(completed_lesson_ids),
@@ -132,7 +139,9 @@ def profile():
                            favorites=favorites,
                            badges=badges,
                            recent_history=recent_history,
-                           used_promos=used_promos)
+                           used_promos=used_promos,
+                           referral_link=referral_link,
+                           referral_count=referral_count)
 
 
 @main_bp.route('/profile/avatar', methods=['POST'])

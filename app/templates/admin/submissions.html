@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Ответы: {{ assignment.title }} — Админ{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Панель</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.edit_lesson', lesson_id=assignment.lesson_id) }}">Урок</a>
+            </li>
+            <li class="breadcrumb-item active">Ответы</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="section-title mb-1">
+                <i class="fas fa-tasks me-2"></i>{{ assignment.title }}
+            </h1>
+            {% if assignment.description %}
+            <p class="text-muted mb-0">{{ assignment.description }}</p>
+            {% endif %}
+        </div>
+        <span class="badge bg-primary fs-6">{{ assignment.submissions | length }} ответов</span>
+    </div>
+
+    {% if assignment.submissions %}
+    <div class="d-flex flex-column gap-3">
+        {% for sub in assignment.submissions | sort(attribute='submitted_at', reverse=True) %}
+        <div class="panel">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                {% if sub.user.avatar_url %}
+                <img src="{{ sub.user.avatar_url }}" alt=""
+                     style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                {% else %}
+                <div class="user-avatar flex-shrink-0" style="width:36px;height:36px;font-size:.85rem;">
+                    {{ sub.user.username[0] }}
+                </div>
+                {% endif %}
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ sub.user.username }}</div>
+                    <div class="text-muted small">{{ sub.submitted_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                </div>
+            </div>
+            <div class="p-3 rounded-2" style="background:var(--bg);border:1px solid var(--border);white-space:pre-wrap;font-size:.9rem;">{{ sub.answer_text }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-inbox text-muted d-block" style="font-size:3rem;opacity:.2;"></i>
+        <h5 class="fw-bold mt-3">Ответов пока нет</h5>
+        <p class="text-muted">Студенты ещё не отправили ответы на это задание</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

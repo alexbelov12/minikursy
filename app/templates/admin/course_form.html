@@ -113,6 +113,14 @@ function previewImage(input, previewId) {
                             </select>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="deadline">
+                            <i class="fas fa-clock text-warning me-1"></i>Дедлайн курса
+                        </label>
+                        <input type="date" name="deadline" id="deadline" class="form-control"
+                               value="{{ course.deadline.isoformat() if course and course.deadline else '' }}">
+                        <div class="form-text">Необязательно. Студенты увидят обратный отсчёт на странице курса.</div>
+                    </div>
                     <div class="mb-4">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="is_published"

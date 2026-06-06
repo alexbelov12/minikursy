@@ -5,7 +5,8 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (Course, Lesson, Question, Answer, UserProgress, UserQuizResult,
                          Certificate, CourseReview, LessonComment, FavoriteCourse,
-                         LessonNote, LessonView, award_badges, update_streak)
+                         LessonNote, LessonView, award_badges, update_streak,
+                         CommentLike, Assignment, AssignmentSubmission, UserQuizAnswer)
 
 courses_bp = Blueprint('courses', __name__)
 
@@ -153,10 +154,27 @@ def submit_quiz(lesson_id):
 
     for question in lesson.questions:
         answer_id = request.form.get(f'question_{question.id}')
+        is_correct = False
+        chosen_answer = None
         if answer_id:
-            answer = Answer.query.get(int(answer_id))
-            if answer and answer.is_correct:
+            chosen_answer = Answer.query.get(int(answer_id))
+            if chosen_answer and chosen_answer.is_correct:
                 score += 1
+                is_correct = True
+        # Upsert per-question answer for stats
+        qa = UserQuizAnswer.query.filter_by(
+            user_id=current_user.id, question_id=question.id
+        ).first()
+        if qa:
+            qa.answer_id = chosen_answer.id if chosen_answer else None
+            qa.is_correct = is_correct
+            qa.answered_at = datetime.utcnow()
+        else:
+            db.session.add(UserQuizAnswer(
+                user_id=current_user.id, question_id=question.id,
+                answer_id=chosen_answer.id if chosen_answer else None,
+                is_correct=is_correct
+            ))
 
     result = UserQuizResult.query.filter_by(
         user_id=current_user.id, lesson_id=lesson_id
@@ -328,3 +346,49 @@ def toggle_favorite(course_id):
         db.session.add(FavoriteCourse(user_id=current_user.id, course_id=course_id))
         db.session.commit()
         return jsonify({'is_favorite': True})
+
+
+# ── Comment likes ──────────────────────────────────────────────────────────────
+
+@courses_bp.route('/comment/<int:comment_id>/like', methods=['POST'])
+@login_required
+def like_comment(comment_id):
+    from app.models import LessonComment
+    LessonComment.query.get_or_404(comment_id)
+    like = CommentLike.query.filter_by(
+        user_id=current_user.id, comment_id=comment_id
+    ).first()
+    if like:
+        db.session.delete(like)
+        liked = False
+    else:
+        db.session.add(CommentLike(user_id=current_user.id, comment_id=comment_id))
+        liked = True
+    db.session.commit()
+    count = CommentLike.query.filter_by(comment_id=comment_id).count()
+    return jsonify({'liked': liked, 'count': count})
+
+
+# ── Assignments ────────────────────────────────────────────────────────────────
+
+@courses_bp.route('/assignment/<int:assignment_id>/submit', methods=['POST'])
+@login_required
+def submit_assignment(assignment_id):
+    a = Assignment.query.get_or_404(assignment_id)
+    text = request.form.get('answer_text', '').strip()
+    if not text:
+        flash('Напишите ответ перед отправкой', 'warning')
+        return redirect(url_for('courses.lesson', lesson_id=a.lesson_id))
+    sub = AssignmentSubmission.query.filter_by(
+        user_id=current_user.id, assignment_id=assignment_id
+    ).first()
+    if sub:
+        sub.answer_text = text
+        sub.submitted_at = datetime.utcnow()
+    else:
+        db.session.add(AssignmentSubmission(
+            user_id=current_user.id, assignment_id=assignment_id, answer_text=text
+        ))
+    db.session.commit()
+    flash('Задание отправлено!', 'success')
+    return redirect(url_for('courses.lesson', lesson_id=a.lesson_id))

@@ -224,6 +224,25 @@
     </div>
     {% endif %}
 
+    <!-- Referral -->
+    <div class="panel mb-4 fade-in">
+        <h5 class="fw-bold mb-3">
+            <i class="fas fa-user-plus text-success me-2"></i>Реферальная программа
+        </h5>
+        <p class="text-muted small mb-3">Поделитесь ссылкой с друзьями — когда кто-то зарегистрируется по вашей ссылке, вы получите значок <strong>Рекрутёр</strong>.</p>
+        <div class="input-group mb-2">
+            <input type="text" class="form-control form-control-sm" id="referralLink"
+                   value="{{ referral_link }}" readonly>
+            <button class="btn btn-outline-primary btn-sm" onclick="copyRef()" title="Скопировать">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+        <div class="text-muted small">
+            <i class="fas fa-users me-1"></i>
+            Приглашено: <strong>{{ referral_count }}</strong> {{ 'человек' if referral_count % 10 != 1 or referral_count % 100 == 11 else 'человек' }}
+        </div>
+    </div>
+
     <!-- Courses progress -->
     <div class="panel fade-in">
         <h5 class="fw-bold mb-4">
@@ -291,6 +310,16 @@
 
 {% block scripts %}
 <script>
+function copyRef() {
+    const el = document.getElementById('referralLink');
+    el.select();
+    navigator.clipboard.writeText(el.value).then(() => {
+        const btn = el.nextElementSibling;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 2000);
+    }).catch(() => { document.execCommand('copy'); });
+}
+
 function previewAvatar(input) {
     const preview = document.getElementById('avatarPreview');
     if (input.files && input.files[0]) {

@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models import (Course, Lesson, Question, Answer, User, UserProgress,
-                         Notification, LessonAttachment, PromoCode)
+                         Notification, LessonAttachment, PromoCode,
+                         Assignment, AssignmentSubmission, UserQuizAnswer, UserQuizResult)
 from app.uploads import save_upload
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -104,6 +105,14 @@ def new_course():
         is_published = bool(request.form.get('is_published'))
         uploaded = save_upload(request.files.get('cover_image_file'), 'courses')
         cover_image = uploaded or request.form.get('cover_image', '').strip() or None
+        from datetime import date as date_type
+        deadline_str = request.form.get('deadline', '').strip()
+        deadline_val = None
+        if deadline_str:
+            try:
+                deadline_val = date_type.fromisoformat(deadline_str)
+            except ValueError:
+                pass
         course = Course(
             title=request.form.get('title', '').strip(),
             description=request.form.get('description', '').strip(),
@@ -111,7 +120,8 @@ def new_course():
             cover_image=cover_image,
             category=request.form.get('category', '').strip() or None,
             difficulty=request.form.get('difficulty', '').strip() or None,
-            is_published=is_published
+            is_published=is_published,
+            deadline=deadline_val
         )
         db.session.add(course)
         db.session.flush()
@@ -138,6 +148,15 @@ def edit_course(course_id):
         course.category = request.form.get('category', '').strip() or None
         course.difficulty = request.form.get('difficulty', '').strip() or None
         course.is_published = bool(request.form.get('is_published'))
+        from datetime import date as date_type
+        deadline_str = request.form.get('deadline', '').strip()
+        if deadline_str:
+            try:
+                course.deadline = date_type.fromisoformat(deadline_str)
+            except ValueError:
+                pass
+        else:
+            course.deadline = None
         if not was_published and course.is_published:
             _notify_all_users(course)
         db.session.commit()
@@ -453,3 +472,114 @@ def delete_promo(promo_id):
     db.session.commit()
     flash('Промокод удалён', 'info')
     return redirect(url_for('admin.promo_list'))
+
+
+# ── Analytics ──────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/analytics')
+@login_required
+@admin_required
+def analytics():
+    from sqlalchemy import func, cast
+    from sqlalchemy.types import Date
+    thirty_ago = datetime.utcnow() - timedelta(days=30)
+    seven_ago = datetime.utcnow() - timedelta(days=7)
+
+    # Registrations per day (last 30 days)
+    reg_rows = db.session.query(
+        cast(User.created_at, Date).label('day'),
+        func.count(User.id).label('cnt')
+    ).filter(User.created_at >= thirty_ago, User.is_admin == False
+    ).group_by('day').order_by('day').all()
+    reg_labels = [str(r.day) for r in reg_rows]
+    reg_data   = [r.cnt for r in reg_rows]
+
+    # Lesson completions per day (last 30 days)
+    comp_rows = db.session.query(
+        cast(UserProgress.completed_at, Date).label('day'),
+        func.count(UserProgress.id).label('cnt')
+    ).filter(UserProgress.completed_at >= thirty_ago
+    ).group_by('day').order_by('day').all()
+    comp_labels = [str(r.day) for r in comp_rows]
+    comp_data   = [r.cnt for r in comp_rows]
+
+    # Active users last 7 days
+    active_users = db.session.query(UserProgress.user_id).filter(
+        UserProgress.completed_at >= seven_ago
+    ).distinct().count()
+
+    # Popular courses (top 5 by enrollment)
+    all_courses = Course.query.filter_by(is_published=True).all()
+    popular = sorted(all_courses, key=lambda c: c.enrolled_count, reverse=True)[:5]
+    pop_labels = [c.title[:30] for c in popular]
+    pop_data   = [c.enrolled_count for c in popular]
+
+    # Totals
+    total_users = User.query.filter_by(is_admin=False).count()
+    total_completions = UserProgress.query.count()
+    total_courses = Course.query.filter_by(is_published=True).count()
+
+    return render_template('admin/analytics.html',
+                           reg_labels=reg_labels, reg_data=reg_data,
+                           comp_labels=comp_labels, comp_data=comp_data,
+                           pop_labels=pop_labels, pop_data=pop_data,
+                           active_users=active_users,
+                           total_users=total_users,
+                           total_completions=total_completions,
+                           total_courses=total_courses)
+
+
+# ── Assignments ────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/lesson/<int:lesson_id>/assignment/add', methods=['POST'])
+@login_required
+@admin_required
+def add_assignment(lesson_id):
+    Lesson.query.get_or_404(lesson_id)
+    title = request.form.get('title', '').strip()
+    desc  = request.form.get('description', '').strip()
+    if not title:
+        flash('Введите название задания', 'danger')
+    else:
+        db.session.add(Assignment(lesson_id=lesson_id, title=title, description=desc or None))
+        db.session.commit()
+        flash('Задание добавлено', 'success')
+    return redirect(url_for('admin.edit_lesson', lesson_id=lesson_id))
+
+
+@admin_bp.route('/assignment/<int:assignment_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_assignment(assignment_id):
+    a = Assignment.query.get_or_404(assignment_id)
+    lesson_id = a.lesson_id
+    db.session.delete(a)
+    db.session.commit()
+    flash('Задание удалено', 'info')
+    return redirect(url_for('admin.edit_lesson', lesson_id=lesson_id))
+
+
+@admin_bp.route('/assignment/<int:assignment_id>/submissions')
+@login_required
+@admin_required
+def assignment_submissions(assignment_id):
+    a = Assignment.query.get_or_404(assignment_id)
+    return render_template('admin/submissions.html', assignment=a)
+
+
+# ── Quiz stats ─────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/lesson/<int:lesson_id>/quiz-stats')
+@login_required
+@admin_required
+def quiz_stats(lesson_id):
+    lesson = Lesson.query.get_or_404(lesson_id)
+    stats = []
+    total_attempts = UserQuizResult.query.filter_by(lesson_id=lesson_id).count()
+    for q in lesson.questions:
+        total_answers = UserQuizAnswer.query.filter_by(question_id=q.id).count()
+        correct = UserQuizAnswer.query.filter_by(question_id=q.id, is_correct=True).count()
+        pct = round(correct / total_answers * 100) if total_answers else 0
+        stats.append({'question': q, 'total': total_answers, 'correct': correct, 'pct': pct})
+    return render_template('admin/quiz_stats.html',
+                           lesson=lesson, stats=stats, total_attempts=total_attempts)
