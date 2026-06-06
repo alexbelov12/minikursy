@@ -24,6 +24,23 @@ with app.app_context():
     except Exception:
         pass
 
+    try:
+        from sqlalchemy import text, inspect
+        insp = inspect(db.engine)
+        user_cols = [c['name'] for c in insp.get_columns('user')]
+        with db.engine.connect() as conn:
+            if 'avatar_url' not in user_cols:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN avatar_url VARCHAR(500)'))
+                conn.commit()
+            if 'streak_days' not in user_cols:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN streak_days INTEGER DEFAULT 0'))
+                conn.commit()
+            if 'last_activity_date' not in user_cols:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN last_activity_date DATE'))
+                conn.commit()
+    except Exception:
+        pass
+
     if not User.query.filter_by(is_admin=True).first():
         admin = User(username='admin', email='admin@platform.com', is_admin=True)
         admin.set_password('admin123')
