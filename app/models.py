@@ -262,7 +262,7 @@ class PromoCode(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    used_by = db.relationship('UserPromoCode', backref='promo_code', lazy=True)
+    used_by = db.relationship('UserPromoCode', backref='promo_code', lazy=True, cascade='all, delete-orphan')
 
 
 class UserPromoCode(db.Model):
