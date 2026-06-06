@@ -118,6 +118,7 @@
                 </div>
 
                 <!-- Review form -->
+                {% if current_user.is_authenticated %}
                 <div class="mb-4" style="background:var(--bg);border-radius:10px;padding:1rem;border:1px solid var(--border);">
                     <div class="fw-semibold small mb-2">
                         {% if user_review %}Изменить отзыв{% else %}Оставить отзыв{% endif %}
@@ -148,12 +149,18 @@
                         </div>
                     </form>
                 </div>
+                {% else %}
+                <div class="mb-4 text-center p-3" style="background:var(--bg);border-radius:10px;border:1px solid var(--border);">
+                    <p class="text-muted small mb-2">Войдите, чтобы оставить отзыв</p>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary">Войти</a>
+                </div>
+                {% endif %}
 
                 <!-- Reviews list -->
                 {% if course.reviews %}
                 <div class="d-flex flex-column gap-3">
                     {% for review in course.reviews | sort(attribute='created_at', reverse=True) %}
-                    {% if review.user_id != current_user.id or current_user.is_admin %}
+                    {% if not current_user.is_authenticated or review.user_id != current_user.id or current_user.is_admin %}
                     <div class="d-flex gap-3">
                         <div class="user-avatar flex-shrink-0" style="width:36px;height:36px;font-size:.85rem;">
                             {{ review.user.username[0] }}
@@ -167,7 +174,7 @@
                                     {% endfor %}
                                 </div>
                                 <span class="text-muted" style="font-size:.72rem;">{{ review.created_at.strftime('%d.%m.%Y') }}</span>
-                                {% if current_user.is_admin %}
+                                {% if current_user.is_authenticated and current_user.is_admin %}
                                 <form method="POST" action="{{ url_for('courses.delete_review', review_id=review.id) }}" class="d-inline ms-auto">
                                     <button type="submit" class="btn btn-sm btn-link text-danger py-0 px-1" style="font-size:.72rem;"
                                             onclick="return confirm('Удалить отзыв?')">
@@ -201,12 +208,14 @@
                             <i class="fas fa-users me-1"></i>{{ course.enrolled_count }}
                         </span>
                         {% endif %}
+                        {% if current_user.is_authenticated %}
                         <button class="btn btn-sm btn-outline-secondary fav-btn py-0 px-2"
                                 data-course-id="{{ course.id }}"
                                 title="{% if is_favorite %}Удалить из избранного{% else %}В избранное{% endif %}"
                                 aria-label="Избранное">
                             <i class="fas fa-heart {% if is_favorite %}text-danger{% else %}text-muted{% endif %}"></i>
                         </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="mb-3">

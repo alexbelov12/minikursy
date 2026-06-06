@@ -11,29 +11,32 @@ courses_bp = Blueprint('courses', __name__)
 
 
 @courses_bp.route('/course/<int:course_id>')
-@login_required
 def course(course_id):
     course = Course.query.get_or_404(course_id)
-    if not course.is_published and not current_user.is_admin:
+    if not course.is_published and not (current_user.is_authenticated and current_user.is_admin):
         flash('Этот курс недоступен', 'warning')
         return redirect(url_for('main.catalog'))
 
-    completed_ids = {p.lesson_id for p in current_user.progress}
+    if current_user.is_authenticated:
+        completed_ids = {p.lesson_id for p in current_user.progress}
+        certificate = Certificate.query.filter_by(
+            user_id=current_user.id, course_id=course_id
+        ).first()
+        user_review = CourseReview.query.filter_by(
+            user_id=current_user.id, course_id=course_id
+        ).first()
+        is_favorite = FavoriteCourse.query.filter_by(
+            user_id=current_user.id, course_id=course_id
+        ).first() is not None
+    else:
+        completed_ids = set()
+        certificate = None
+        user_review = None
+        is_favorite = False
+
     total = len(course.lessons)
     completed = sum(1 for l in course.lessons if l.id in completed_ids)
     percent = int(completed / total * 100) if total > 0 else 0
-
-    certificate = Certificate.query.filter_by(
-        user_id=current_user.id, course_id=course_id
-    ).first()
-
-    user_review = CourseReview.query.filter_by(
-        user_id=current_user.id, course_id=course_id
-    ).first()
-
-    is_favorite = FavoriteCourse.query.filter_by(
-        user_id=current_user.id, course_id=course_id
-    ).first() is not None
 
     # Related courses: same category, excluding this one
     related = []
