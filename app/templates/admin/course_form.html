@@ -1,6 +1,19 @@
 {% extends "base.html" %}
 {% block title %}{% if course %}Редактировать курс{% else %}{{ t('admin.new_course') }}{% endif %} — {{ t('nav.brand') }}{% endblock %}
 
+{% block head %}
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+.ql-toolbar { border-radius: 8px 8px 0 0; background: var(--panel); border-color: var(--border) !important; }
+.ql-container { border-radius: 0 0 8px 8px; border-color: var(--border) !important; background: var(--panel); min-height: 120px; }
+.ql-editor { color: var(--text); min-height: 120px; }
+[data-theme="dark"] .ql-toolbar .ql-stroke { stroke: #cbd5e1; }
+[data-theme="dark"] .ql-toolbar .ql-fill { fill: #cbd5e1; }
+[data-theme="dark"] .ql-toolbar .ql-picker { color: #cbd5e1; }
+[data-theme="dark"] .ql-toolbar .ql-picker-options { background: #1e293b; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -36,12 +49,12 @@
                                placeholder="Одно предложение о курсе (отображается в карточке)">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="description">
+                        <label class="form-label fw-semibold">
                             Полное описание <span class="text-danger">*</span>
                         </label>
-                        <textarea name="description" id="description" class="form-control" rows="4"
-                                  placeholder="Подробное описание курса..." required
-                                  aria-required="true">{{ course.description if course else '' }}</textarea>
+                        <div id="descriptionEditor"></div>
+                        <input type="hidden" name="description" id="descriptionHidden"
+                               value="{{ course.description if course else '' }}">
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="cover_image">
@@ -176,4 +189,31 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+const quillDesc = new Quill('#descriptionEditor', {
+    theme: 'snow',
+    modules: {
+        toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link'], ['clean']
+        ]
+    }
+});
+
+const existingDesc = document.getElementById('descriptionHidden').value;
+if (existingDesc) {
+    const html = existingDesc.includes('<') ? existingDesc : existingDesc.replace(/\n/g, '<br>');
+    quillDesc.clipboard.dangerouslyPasteHTML(html);
+}
+
+document.querySelector('form').addEventListener('submit', function() {
+    const content = quillDesc.root.innerHTML;
+    document.getElementById('descriptionHidden').value = content === '<p><br></p>' ? '' : content;
+});
+</script>
 {% endblock %}
