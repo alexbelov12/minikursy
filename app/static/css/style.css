@@ -538,7 +538,7 @@ footer .text-muted { color: rgba(255,255,255,0.55) !important; }
 
 /* ── Empty state ── */
 .empty-state { padding: 3rem 1rem; text-align: center; }
-.empty-state i { font-size: 3.5rem; opacity: 0.25; margin-bottom: 1rem; }
+.empty-state > i, .empty-state > div > i { font-size: 3.5rem; opacity: 0.25; margin-bottom: 1rem; }
 
 /* ── Focus rings ── */
 :focus-visible {
