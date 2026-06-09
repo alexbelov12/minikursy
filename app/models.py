@@ -149,6 +149,9 @@ class Answer(db.Model):
     text = db.Column(db.String(500), nullable=False)
     is_correct = db.Column(db.Boolean, default=False)
 
+    user_answers = db.relationship('UserQuizAnswer', foreign_keys='UserQuizAnswer.answer_id',
+                                   lazy=True, cascade='all, delete-orphan')
+
 
 class UserProgress(db.Model):
     id = db.Column(db.Integer, primary_key=True)

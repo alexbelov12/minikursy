@@ -78,6 +78,23 @@ with app.app_context():
     except Exception:
         pass
 
+    # Fix FK: user_quiz_answer.answer_id must cascade on delete
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            conn.execute(text('''
+                ALTER TABLE user_quiz_answer
+                DROP CONSTRAINT IF EXISTS user_quiz_answer_answer_id_fkey
+            '''))
+            conn.execute(text('''
+                ALTER TABLE user_quiz_answer
+                ADD CONSTRAINT user_quiz_answer_answer_id_fkey
+                FOREIGN KEY (answer_id) REFERENCES answer(id) ON DELETE SET NULL
+            '''))
+            conn.commit()
+    except Exception:
+        pass
+
     if not User.query.filter_by(is_admin=True).first():
         admin = User(username='admin', email='admin@platform.com', is_admin=True)
         admin.set_password('admin123')
