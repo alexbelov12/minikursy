@@ -1,32 +1,29 @@
 import json
 import re
 
-MODEL = 'llama-3.3-70b-versatile'
+MODEL = 'claude-haiku-4-5-20251001'
 
 
 def _get_client():
-    from groq import Groq
+    import anthropic
     from flask import current_app
-    api_key = current_app.config.get('GROQ_API_KEY', '')
+    api_key = current_app.config.get('ANTHROPIC_API_KEY', '')
     if not api_key:
-        raise RuntimeError('GROQ_API_KEY не настроен. Добавьте его в config.py.')
-    return Groq(api_key=api_key)
+        raise RuntimeError('ANTHROPIC_API_KEY не настроен. Добавьте его в переменные окружения.')
+    return anthropic.Anthropic(api_key=api_key)
 
 
 def _generate(prompt: str, max_tokens: int = 2048) -> str:
     client = _get_client()
-    response = client.chat.completions.create(
+    message = client.messages.create(
         model=MODEL,
-        messages=[{'role': 'user', 'content': prompt}],
-        temperature=0.7,
         max_tokens=max_tokens,
+        messages=[{'role': 'user', 'content': prompt}]
     )
-    return response.choices[0].message.content.strip()
-
+    return message.content[0].text.strip()
 
 
 def search_web(query: str, max_results: int = 4) -> list:
-    """Search the web via DuckDuckGo and return snippet list."""
     try:
         from duckduckgo_search import DDGS
         with DDGS() as ddgs:
@@ -77,7 +74,6 @@ def generate_quiz_questions(lesson_content, lesson_title, num_questions=5, lang=
 
 
 def generate_lesson_content(topic: str, lang: str = 'ru') -> str:
-    """Generate HTML lesson content for the given topic."""
     lang_map = {
         'ru': 'на русском языке',
         'kz': 'на казахском языке',
@@ -114,10 +110,8 @@ def chat_with_lesson(user_message, lesson_content, lesson_title, lang='ru'):
         'en': 'Answer in English. Be concise and specific.',
     }.get(lang, 'Отвечай на русском языке.')
 
-    # 1. Lesson text content
     lesson_block = lesson_content[:3500] if lesson_content else ''
 
-    # 2. Web search
     web_block = ''
     web_results = search_web(f'{lesson_title} {user_message}')
     if web_results:
@@ -130,7 +124,6 @@ def chat_with_lesson(user_message, lesson_content, lesson_title, lang='ru'):
             lines.append(f'• {title}: {body}  [{href}]')
         web_block = f'{label}:\n' + '\n'.join(lines)
 
-    # Build context
     sources = [s for s in [lesson_block, web_block] if s]
     context = '\n\n---\n\n'.join(sources) if sources else '(контекст недоступен)'
 
