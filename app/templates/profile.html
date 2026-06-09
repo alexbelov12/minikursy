@@ -332,6 +332,49 @@
             </div>
         {% endif %}
     </div>
+
+    <!-- Delete account -->
+    {% if not current_user.is_admin %}
+    <div class="panel mb-4 fade-in" style="border:1px solid #fecaca;">
+        <h5 class="fw-bold mb-1 text-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>Опасная зона
+        </h5>
+        <p class="text-muted small mb-3">Удаление аккаунта необратимо — весь прогресс, достижения и данные будут удалены.</p>
+        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            <i class="fas fa-trash me-2"></i>Удалить аккаунт
+        </button>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px;border:none;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger" id="deleteModalLabel">
+                        <i class="fas fa-trash me-2"></i>Удалить аккаунт
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Для подтверждения введите ваш пароль. Это действие нельзя отменить.</p>
+                    <form method="POST" action="{{ url_for('main.delete_account') }}" id="deleteForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="deletePassword">Пароль</label>
+                            <input type="password" class="form-control" id="deletePassword"
+                                   name="password" placeholder="Введите пароль" required autofocus>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger flex-grow-1">
+                                <i class="fas fa-trash me-2"></i>Удалить навсегда
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

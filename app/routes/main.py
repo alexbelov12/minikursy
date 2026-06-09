@@ -173,6 +173,25 @@ def update_avatar():
     return redirect(url_for('main.profile'))
 
 
+@main_bp.route('/profile/delete', methods=['POST'])
+@login_required
+def delete_account():
+    if current_user.is_admin:
+        flash('Аккаунт администратора нельзя удалить.', 'danger')
+        return redirect(url_for('main.profile'))
+    password = request.form.get('password', '')
+    if not current_user.check_password(password):
+        flash('Неверный пароль. Аккаунт не удалён.', 'danger')
+        return redirect(url_for('main.profile'))
+    from flask_login import logout_user
+    user = current_user._get_current_object()
+    logout_user()
+    db.session.delete(user)
+    db.session.commit()
+    flash('Ваш аккаунт удалён.', 'info')
+    return redirect(url_for('main.index'))
+
+
 @main_bp.route('/notifications')
 @login_required
 def notifications():
