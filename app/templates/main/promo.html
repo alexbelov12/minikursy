@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Промокод — {{ t('nav.brand') }}{% endblock %}
+{% block title %}{{ t('nav.promo') }} — {{ t('nav.brand') }}{% endblock %}
 
 {% block content %}
 <div class="container py-4" style="max-width:640px;">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.profile') }}">Профиль</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Промокод</li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.profile') }}">{{ t('nav.profile') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('nav.promo') }}</li>
         </ol>
     </nav>
 
@@ -15,8 +15,8 @@
             <div style="width:64px;height:64px;background:#ede9fe;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
                 <i class="fas fa-ticket-alt" style="font-size:1.5rem;color:#7c3aed;"></i>
             </div>
-            <h3 class="fw-bold mb-1">Активировать промокод</h3>
-            <p class="text-muted mb-0">Введите промокод для получения специальных возможностей</p>
+            <h3 class="fw-bold mb-1">{{ t('promo.activate_title') }}</h3>
+            <p class="text-muted mb-0">{{ t('promo.activate_subtitle') }}</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -30,7 +30,7 @@
 
         <form method="POST" action="{{ url_for('main.apply_promo') }}">
             <div class="mb-3">
-                <label class="form-label fw-semibold">Промокод</label>
+                <label class="form-label fw-semibold">{{ t('promo.label') }}</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-tag"></i></span>
                     <input type="text" name="code" class="form-control"
@@ -38,7 +38,7 @@
                            style="text-transform:uppercase;letter-spacing:.1em;font-weight:600;"
                            required oninput="this.value=this.value.toUpperCase()">
                     <button type="submit" class="btn btn-primary px-4">
-                        <i class="fas fa-check me-1"></i>Применить
+                        <i class="fas fa-check me-1"></i>{{ t('promo.apply_btn') }}
                     </button>
                 </div>
             </div>
@@ -48,7 +48,7 @@
     {% if used_promos %}
     <div class="panel">
         <h6 class="fw-bold mb-3">
-            <i class="fas fa-history text-secondary me-2"></i>Использованные промокоды
+            <i class="fas fa-history text-secondary me-2"></i>{{ t('promo.history_title') }}
         </h6>
         <div class="d-flex flex-column gap-2">
             {% for upc in used_promos %}

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Новый промокод — Админ{% endblock %}
+{% block title %}{{ t('promo.new_title') }} — Админ{% endblock %}
 
 {% block content %}
 <div class="container py-4" style="max-width:560px;">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Панель</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.promo_list') }}">Промокоды</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Создать</li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin.title') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.promo_list') }}">{{ t('promo.admin_title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('promo.save_btn') }}</li>
         </ol>
     </nav>
 
@@ -19,48 +19,48 @@
 
     <div class="panel">
         <h3 class="fw-bold mb-4">
-            <i class="fas fa-ticket-alt me-2 text-purple"></i>Новый промокод
+            <i class="fas fa-ticket-alt me-2 text-purple"></i>{{ t('promo.new_title') }}
         </h3>
         <form method="POST" action="{{ url_for('admin.new_promo') }}" novalidate>
             <div class="mb-3">
-                <label class="form-label fw-semibold">Код <span class="text-danger">*</span></label>
+                <label class="form-label fw-semibold">{{ t('promo.code_label') }} <span class="text-danger">*</span></label>
                 <input type="text" name="code" class="form-control"
                        placeholder="SUMMER2024"
                        style="font-family:monospace;font-weight:600;letter-spacing:.1em;text-transform:uppercase;"
                        required maxlength="50"
                        oninput="this.value=this.value.toUpperCase()">
-                <div class="form-text">Только заглавные буквы и цифры</div>
+                <div class="form-text">{{ t('promo.code_hint') }}</div>
             </div>
             <div class="mb-3">
-                <label class="form-label fw-semibold">Описание</label>
+                <label class="form-label fw-semibold">{{ t('promo.desc_label') }}</label>
                 <input type="text" name="description" class="form-control"
                        placeholder="Для участников летнего марафона" maxlength="300">
             </div>
             <div class="mb-3">
-                <label class="form-label fw-semibold">Максимум использований</label>
+                <label class="form-label fw-semibold">{{ t('promo.max_uses_label') }}</label>
                 <input type="number" name="max_uses" class="form-control" value="0" min="0"
                        style="max-width:150px;">
-                <div class="form-text">0 = без ограничений</div>
+                <div class="form-text">{{ t('promo.max_uses_hint') }}</div>
             </div>
             <div class="mb-3">
-                <label class="form-label fw-semibold">Дата истечения</label>
+                <label class="form-label fw-semibold">{{ t('promo.expires_label') }}</label>
                 <input type="date" name="expires_at" class="form-control"
                        style="max-width:200px;">
-                <div class="form-text">Оставьте пустым для бессрочного кода</div>
+                <div class="form-text">{{ t('promo.expires_hint') }}</div>
             </div>
             <div class="form-check mb-4">
                 <input class="form-check-input" type="checkbox" name="is_active"
                        id="isActive" value="1" checked>
                 <label class="form-check-label" for="isActive">
-                    Активен сразу после создания
+                    {{ t('promo.active_label') }}
                 </label>
             </div>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary px-4">
-                    <i class="fas fa-save me-2"></i>Создать
+                    <i class="fas fa-save me-2"></i>{{ t('promo.save_btn') }}
                 </button>
                 <a href="{{ url_for('admin.promo_list') }}" class="btn btn-outline-secondary px-4">
-                    Отмена
+                    {{ t('promo.cancel') }}
                 </a>
             </div>
         </form>

@@ -73,7 +73,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin.analytics') }}">
-                            <i class="fas fa-chart-bar me-1"></i>Аналитика
+                            <i class="fas fa-chart-bar me-1"></i>{{ t('nav.analytics') }}
                         </a>
                     </li>
                     {% endif %}
@@ -103,13 +103,13 @@
                             </li>
                             <li>
                                 <a class="dropdown-item rounded-2" href="{{ url_for('admin.promo_list') }}">
-                                    <i class="fas fa-ticket-alt me-2 text-purple"></i>Промокоды
+                                    <i class="fas fa-ticket-alt me-2 text-purple"></i>{{ t('nav.promos') }}
                                 </a>
                             </li>
                             {% else %}
                             <li>
                                 <a class="dropdown-item rounded-2" href="{{ url_for('main.apply_promo') }}">
-                                    <i class="fas fa-ticket-alt me-2" style="color:#8b5cf6;"></i>Промокод
+                                    <i class="fas fa-ticket-alt me-2" style="color:#8b5cf6;"></i>{{ t('nav.promo') }}
                                 </a>
                             </li>
                             {% endif %}

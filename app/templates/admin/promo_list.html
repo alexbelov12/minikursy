@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Промокоды — Админ{% endblock %}
+{% block title %}{{ t('promo.admin_title') }} — Админ{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <h1 class="section-title mb-0">
-            <i class="fas fa-ticket-alt me-2"></i>Промокоды
+            <i class="fas fa-ticket-alt me-2"></i>{{ t('promo.admin_title') }}
         </h1>
         <div class="d-flex gap-2">
             <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i>Назад
+                <i class="fas fa-arrow-left me-1"></i>{{ t('promo.back') }}
             </a>
             <a href="{{ url_for('admin.new_promo') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>Создать промокод
+                <i class="fas fa-plus me-1"></i>{{ t('promo.create') }}
             </a>
         </div>
     </div>
@@ -29,12 +29,12 @@
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr class="text-muted small">
-                        <th>Код</th>
-                        <th>Описание</th>
-                        <th>Использований</th>
-                        <th>Лимит</th>
-                        <th>Истекает</th>
-                        <th>Статус</th>
+                        <th>{{ t('promo.col_code') }}</th>
+                        <th>{{ t('promo.col_desc') }}</th>
+                        <th>{{ t('promo.col_uses') }}</th>
+                        <th>{{ t('promo.col_limit') }}</th>
+                        <th>{{ t('promo.col_expires') }}</th>
+                        <th>{{ t('promo.col_status') }}</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -52,7 +52,7 @@
                             <button class="btn btn-sm btn-link text-muted p-0 ms-1"
                                     type="button" data-bs-toggle="collapse"
                                     data-bs-target="#users_{{ promo.id }}"
-                                    title="Показать пользователей">
+                                    title="{{ t('promo.col_uses') }}">
                                 <i class="fas fa-users" style="font-size:.75rem;"></i>
                             </button>
                             <div class="collapse mt-1" id="users_{{ promo.id }}">
@@ -63,7 +63,7 @@
                                 </div>
                                 {% endfor %}
                                 {% else %}
-                                <div class="text-muted small">Не использован</div>
+                                <div class="text-muted small">{{ t('promo.not_used') }}</div>
                                 {% endif %}
                             </div>
                         </td>
@@ -77,9 +77,9 @@
                         </td>
                         <td>
                             {% if promo.is_active %}
-                            <span class="badge bg-success">Активен</span>
+                            <span class="badge bg-success">{{ t('promo.active') }}</span>
                             {% else %}
-                            <span class="badge bg-secondary">Отключён</span>
+                            <span class="badge bg-secondary">{{ t('promo.disabled') }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -91,7 +91,7 @@
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('admin.delete_promo', promo_id=promo.id) }}"
-                                      onsubmit="return confirm('Удалить промокод?')">
+                                      onsubmit="return confirm('{{ t(\"promo.admin_title\") }}?')">
                                     <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -107,9 +107,9 @@
     {% else %}
     <div class="empty-state">
         <i class="fas fa-ticket-alt text-muted d-block" style="font-size:3rem;opacity:.2;"></i>
-        <h5 class="fw-bold mt-3">Промокодов нет</h5>
+        <h5 class="fw-bold mt-3">{{ t('promo.empty_title') }}</h5>
         <a href="{{ url_for('admin.new_promo') }}" class="btn btn-primary mt-2">
-            <i class="fas fa-plus me-2"></i>Создать первый промокод
+            <i class="fas fa-plus me-2"></i>{{ t('promo.create_first') }}
         </a>
     </div>
     {% endif %}

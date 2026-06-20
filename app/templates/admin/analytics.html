@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Аналитика — Админ{% endblock %}
+{% block title %}{{ t('analytics.title') }} — Админ{% endblock %}
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -9,11 +9,11 @@
 <div class="container py-4">
     <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
-            <h1 class="section-title mb-1"><i class="fas fa-chart-line me-2"></i>Аналитика</h1>
-            <p class="text-muted mb-0">Статистика платформы за последние 30 дней</p>
+            <h1 class="section-title mb-1"><i class="fas fa-chart-line me-2"></i>{{ t('analytics.title') }}</h1>
+            <p class="text-muted mb-0">{{ t('analytics.subtitle') }}</p>
         </div>
         <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>Назад
+            <i class="fas fa-arrow-left me-1"></i>{{ t('analytics.back') }}
         </a>
     </div>
 
@@ -25,7 +25,7 @@
                     <i class="fas fa-users" style="color:#2563eb;"></i>
                 </div>
                 <div class="fw-bold" style="font-size:1.6rem;">{{ total_users }}</div>
-                <div class="text-muted small">Всего студентов</div>
+                <div class="text-muted small">{{ t('analytics.total_students') }}</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -34,7 +34,7 @@
                     <i class="fas fa-bolt" style="color:#16a34a;"></i>
                 </div>
                 <div class="fw-bold" style="font-size:1.6rem;">{{ active_users }}</div>
-                <div class="text-muted small">Активны (7 дней)</div>
+                <div class="text-muted small">{{ t('analytics.active_7d') }}</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -43,7 +43,7 @@
                     <i class="fas fa-check-circle" style="color:#ca8a04;"></i>
                 </div>
                 <div class="fw-bold" style="font-size:1.6rem;">{{ total_completions }}</div>
-                <div class="text-muted small">Уроков пройдено</div>
+                <div class="text-muted small">{{ t('analytics.lessons_completed') }}</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -52,7 +52,7 @@
                     <i class="fas fa-book-open" style="color:#7c3aed;"></i>
                 </div>
                 <div class="fw-bold" style="font-size:1.6rem;">{{ total_courses }}</div>
-                <div class="text-muted small">Опубликованных курсов</div>
+                <div class="text-muted small">{{ t('analytics.published_courses') }}</div>
             </div>
         </div>
     </div>
@@ -62,7 +62,7 @@
         <div class="col-lg-6">
             <div class="panel h-100">
                 <h6 class="fw-bold mb-3">
-                    <i class="fas fa-user-plus text-primary me-2"></i>Новые регистрации (30 дней)
+                    <i class="fas fa-user-plus text-primary me-2"></i>{{ t('analytics.registrations_chart') }}
                 </h6>
                 <canvas id="regChart" height="200"></canvas>
             </div>
@@ -71,7 +71,7 @@
         <div class="col-lg-6">
             <div class="panel h-100">
                 <h6 class="fw-bold mb-3">
-                    <i class="fas fa-graduation-cap text-success me-2"></i>Завершения уроков (30 дней)
+                    <i class="fas fa-graduation-cap text-success me-2"></i>{{ t('analytics.completions_chart') }}
                 </h6>
                 <canvas id="compChart" height="200"></canvas>
             </div>
@@ -81,12 +81,12 @@
     <!-- Popular courses -->
     <div class="panel">
         <h6 class="fw-bold mb-3">
-            <i class="fas fa-fire text-danger me-2"></i>Популярные курсы (по числу студентов)
+            <i class="fas fa-fire text-danger me-2"></i>{{ t('analytics.popular_courses') }}
         </h6>
         {% if pop_labels %}
         <canvas id="popChart" height="120"></canvas>
         {% else %}
-        <p class="text-muted small">Нет данных о прохождении курсов</p>
+        <p class="text-muted small">{{ t('analytics.no_data') }}</p>
         {% endif %}
     </div>
 </div>
@@ -106,7 +106,7 @@ new Chart(document.getElementById('regChart'), {
     data: {
         labels: {{ reg_labels | tojson }},
         datasets: [{
-            label: 'Регистрации',
+            label: '{{ t("analytics.registrations_chart") }}',
             data: {{ reg_data | tojson }},
             backgroundColor: '#3b82f6',
             ...chartDefaults
@@ -127,7 +127,7 @@ new Chart(document.getElementById('compChart'), {
     data: {
         labels: {{ comp_labels | tojson }},
         datasets: [{
-            label: 'Завершений',
+            label: '{{ t("analytics.completions_chart") }}',
             data: {{ comp_data | tojson }},
             borderColor: '#10b981',
             backgroundColor: 'rgba(16,185,129,.1)',
@@ -152,7 +152,7 @@ new Chart(document.getElementById('popChart'), {
     data: {
         labels: {{ pop_labels | tojson }},
         datasets: [{
-            label: 'Студентов',
+            label: '{{ t("analytics.total_students") }}',
             data: {{ pop_data | tojson }},
             backgroundColor: ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6'],
             ...chartDefaults
